@@ -22,13 +22,37 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
 struct cyclic_buffer_view
 {
     cyclic_buffer_view(void* start, std::size_t size)
-        : _start(start), _size(size)
+        : _start(start), _pointer(start), _size(size), _read_size(0)
     {
+    }
+
+    template<class T>
+    T* read()
+    {
+        return reinterpret_cast<T*>(read(sizeof(T)));
+    }
+
+    void* read(std::size_t size)
+    {
+        if (_pointer + size > _start + _size)
+            throw std::runtime_error{"buffer overflow"};
+
+        auto old = _pointer;
+        _pointer += size;
+        _read_size += size;
+        return old;
+    }
+
+    auto total_read_size() const
+    {
+        return _read_size;
     }
 
 private:
     void* _start;
+    void* _pointer;
     std::size_t _size;
+    std::size_t _read_size;
 };
 
 int main(int argc, char **argv)
@@ -86,16 +110,14 @@ int main(int argc, char **argv)
     // man says that after reading data_head, rmb should be issued
     __sync_synchronize();
 
-    std::size_t read = 0;
-    while (read < metadata_page->data_head)
+    cyclic_buffer_view data_buffer{data, metadata_page->data_size};
+
+    while (data_buffer.total_read_size() < metadata_page->data_head)
     {
-        std::cerr << "reading from: " << data << ' ';
-        const perf_event_header* event_header = reinterpret_cast<perf_event_header*>(data);
-        //data += sizeof(perf_event_header);
-        //read += sizeof(perf_event_header);
+        auto* event_header = data_buffer.read<perf_event_header>();
+        data_buffer.read(event_header->size - sizeof(perf_event_header));
+
         std::cerr << "event type: " << event_header->type << ", size: " << event_header->size << std::endl;
-        data += event_header->size;
-        read += event_header->size;
     }
 
 
