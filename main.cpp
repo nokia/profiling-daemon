@@ -148,8 +148,6 @@ struct perf_session
         auto data_head = metadata->data_head;
         __sync_synchronize();
 
-        std::cerr << "head: " << data_head << '\n';
-
         while (_data_view.total_read_size() < data_head)
         {
             auto* header = _data_view.read<perf_event_header>();
@@ -160,7 +158,6 @@ struct perf_session
 
             assert(header->size == sizeof(header) + sizeof(sample_t));
 
-            //std::cerr << sample << "ip: " << std::hex << sample->ip << std::endl;
             f(*sample);
         }
 
@@ -169,7 +166,7 @@ struct perf_session
         // TODO
         metadata->data_tail = _data_view.total_read_size();
         __sync_synchronize();
-        std::cerr << "tail: " << metadata->data_tail << '\n';
+        //std::cerr << "tail: " << metadata->data_tail << '\n';
     }
 
 private:
@@ -191,7 +188,7 @@ int main(int argc, char **argv)
     while(true)
     session.read_some([](const auto& sample)
     {
-        //std::cerr << "ip: " << sample.ip << '\n';
+        std::cerr << &sample << ", ip: " << sample.ip << '\n';
     });
 }
 
