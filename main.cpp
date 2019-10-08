@@ -108,6 +108,11 @@ struct perf_session
         ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
+    perf_event_mmap_page* metadata()
+    {
+        return reinterpret_cast<perf_event_mmap_page*>(buffer);
+    }
+
     ~perf_session()
     {
         close(fd);
@@ -129,21 +134,16 @@ int main(int argc, char **argv)
 
     session.disable();
 
-    const perf_event_mmap_page* metadata_page = reinterpret_cast<perf_event_mmap_page*>(session.buffer);
-    std::cerr << "metadata_page: " << metadata_page << std::endl;
-    std::cerr << "metadata_page->data_head: " << metadata_page->data_head << std::endl;
-    std::cerr << "metadata_page->data_offset: " << metadata_page->data_offset<< std::endl;
-    std::cerr << "metadata_page->data_size: " << metadata_page->data_size<< std::endl;
-    void* data = session.buffer + metadata_page->data_offset;
-
-    std::cerr << "data: " << data << std::endl;
+    auto* metadata = session.metadata();
 
     // man says that after reading data_head, rmb should be issued
+    auto data_head = metadata->data_head;
+    void* data = session.buffer + metadata->data_offset;
     __sync_synchronize();
 
-    cyclic_buffer_view data_buffer{data, metadata_page->data_size};
+    cyclic_buffer_view data_buffer{data, session.metadata()->data_size};
 
-    while (data_buffer.total_read_size() < metadata_page->data_head)
+    while (data_buffer.total_read_size() < data_head)
     {
         auto* header = data_buffer.read<perf_event_header>();
         auto* event_sample = data_buffer.read<sample_t>();
