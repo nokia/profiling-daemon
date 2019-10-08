@@ -163,10 +163,7 @@ struct perf_session
 
         // we are done with the reading so we can write the tail to let the kernel know
         // that it can continue with writes
-        // TODO
         metadata->data_tail = _data_view.total_read_size();
-        __sync_synchronize();
-        //std::cerr << "tail: " << metadata->data_tail << '\n';
     }
 
 private:
