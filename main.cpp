@@ -7,6 +7,7 @@
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
 #include <sys/mman.h>
+#include <cassert>
 
 static long
 perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
@@ -55,6 +56,13 @@ private:
     std::size_t _read_size;
 };
 
+struct sample
+{
+    constexpr static std::uint32_t type = PERF_SAMPLE_IP | PERF_SAMPLE_TIME;
+    std::uint64_t ip;
+    std::uint64_t time;
+};
+
 int main(int argc, char **argv)
 {
     struct perf_event_attr pe;
@@ -66,7 +74,7 @@ int main(int argc, char **argv)
     pe.size = sizeof(struct perf_event_attr);
     pe.config = PERF_COUNT_HW_INSTRUCTIONS;
     pe.sample_freq = 7000;
-    pe.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TIME;
+    pe.sample_type = sample::type;
     pe.disabled = 1;
     pe.exclude_kernel = 1;
     pe.exclude_hv = 1;
@@ -114,10 +122,15 @@ int main(int argc, char **argv)
 
     while (data_buffer.total_read_size() < metadata_page->data_head)
     {
-        auto* event_header = data_buffer.read<perf_event_header>();
-        data_buffer.read(event_header->size - sizeof(perf_event_header));
+        auto* header = data_buffer.read<perf_event_header>();
+        auto* event_sample = data_buffer.read<sample>();
 
-        std::cerr << "event type: " << event_header->type << ", size: " << event_header->size << std::endl;
+        if (header->type != PERF_RECORD_SAMPLE)
+            throw std::runtime_error("unsupported event type");
+
+        assert(header->size == sizeof(header) + sizeof(sample));
+
+        std::cerr << "ip: " << std::hex << event_sample->ip << std::endl;
     }
 
 
