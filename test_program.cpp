@@ -1,9 +1,11 @@
-void bar()
+__attribute__((noinline)) void bar()
 {
+    asm volatile("");
 }
 
-int foo()
+__attribute__((noinline)) void foo()
 {
+    asm volatile("");
 }
 
 int main()
