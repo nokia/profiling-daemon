@@ -67,9 +67,7 @@ struct perf_fd
 {
     perf_fd()
     {
-        struct perf_event_attr pe;
-
-        memset(&pe, 0, sizeof(struct perf_event_attr));
+        perf_event_attr pe{};
         pe.type = PERF_TYPE_HARDWARE;
         pe.size = sizeof(struct perf_event_attr);
         pe.config = PERF_COUNT_HW_INSTRUCTIONS;
@@ -82,19 +80,16 @@ struct perf_fd
         pe.freq = 1;
 
         fd = perf_event_open(&pe, -1, 0, -1, 0);
-        if (fd == -1) {
-            fprintf(stderr, "Error opening leader %llx\n", pe.config);
-            exit(EXIT_FAILURE);
-        }
+
+        if (fd == -1)
+            throw std::runtime_error("perf_event_open failed, perhaps you do not have enough permissions");
 
         constexpr std::size_t page_size = 4 * 1024;
         constexpr std::size_t mmap_size = page_size * 2;
 
         _buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (_buffer == MAP_FAILED) {
-            perror("Cannot memory map sampling buffer\n");
-            exit(EXIT_FAILURE);
-        }
+        if (_buffer == MAP_FAILED)
+            throw std::runtime_error("mmap failed, I did never wonder why would it fail");
     }
 
     ~perf_fd()
