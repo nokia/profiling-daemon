@@ -146,14 +146,14 @@ int main(int argc, char **argv)
     while (data_buffer.total_read_size() < data_head)
     {
         auto* header = data_buffer.read<perf_event_header>();
-        auto* event_sample = data_buffer.read<sample_t>();
+        auto* sample = data_buffer.read<sample_t>();
 
         if (header->type != PERF_RECORD_SAMPLE)
             throw std::runtime_error("unsupported event type");
 
         assert(header->size == sizeof(header) + sizeof(sample_t));
 
-        std::cerr << "ip: " << std::hex << event_sample->ip << std::endl;
+        std::cerr << "ip: " << std::hex << sample->ip << std::endl;
     }
 
     // we are done with the reading so we can write the tail to let the kernel know
