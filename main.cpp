@@ -125,7 +125,9 @@ private:
 
 struct perf_session
 {
-    perf_session() : metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer()))
+    perf_session()
+        : metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer())),
+          _data_view{_fd.buffer() + metadata->data_offset, metadata->data_size}
     {
     }
 
@@ -144,16 +146,14 @@ struct perf_session
     {
         // man says that after reading data_head, rmb should be issued
         auto data_head = metadata->data_head;
-        std::cerr << "head: " << data_head << '\n';
-        void* data = _fd.buffer() + metadata->data_offset;
         __sync_synchronize();
 
-        cyclic_buffer_view data_buffer{data, metadata->data_size};
+        std::cerr << "head: " << data_head << '\n';
 
-        while (data_buffer.total_read_size() < data_head)
+        while (_data_view.total_read_size() < data_head)
         {
-            auto* header = data_buffer.read<perf_event_header>();
-            auto* sample = data_buffer.read<sample_t>();
+            auto* header = _data_view.read<perf_event_header>();
+            auto* sample = _data_view.read<sample_t>();
 
             if (header->type != PERF_RECORD_SAMPLE)
                 throw std::runtime_error("unsupported event type");
@@ -167,7 +167,7 @@ struct perf_session
         // we are done with the reading so we can write the tail to let the kernel know
         // that it can continue with writes
         // TODO
-        metadata->data_tail = data_buffer.total_read_size();
+        metadata->data_tail = _data_view.total_read_size();
         __sync_synchronize();
         std::cerr << "tail: " << metadata->data_tail << '\n';
     }
@@ -175,7 +175,7 @@ struct perf_session
 private:
     perf_fd _fd;
     perf_event_mmap_page* metadata;
-
+    cyclic_buffer_view _data_view;
 };
 
 int main(int argc, char **argv)
