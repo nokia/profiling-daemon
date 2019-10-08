@@ -36,7 +36,7 @@ struct cyclic_buffer_view
     void* read(std::size_t size)
     {
         if (_pointer + size > _start + _size)
-            throw std::runtime_error{"buffer overflow"};
+            throw std::runtime_error{"this read would wrap the buffer but this is not implemented yet"};
 
         auto old = _pointer;
         _pointer += size;
@@ -133,8 +133,10 @@ int main(int argc, char **argv)
         std::cerr << "ip: " << std::hex << event_sample->ip << std::endl;
     }
 
+    // we are done with the reading so we can write the tail to let the kernel know
+    // that it can continue with writes
+    // TODO
 
-    //printf("Used %lld instructions\n", count);
 
     close(fd);
 }
