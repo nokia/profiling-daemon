@@ -63,9 +63,9 @@ struct sample_t
     std::uint64_t time;
 };
 
-struct perf_session
+struct perf_fd
 {
-    perf_session()
+    perf_fd()
     {
         struct perf_event_attr pe;
 
@@ -90,16 +90,22 @@ struct perf_session
         constexpr std::size_t page_size = 4 * 1024;
         constexpr std::size_t mmap_size = page_size * 2;
 
-        buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        if (buffer == MAP_FAILED) {
+        _buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (_buffer == MAP_FAILED) {
             perror("Cannot memory map sampling buffer\n");
             exit(EXIT_FAILURE);
         }
-
-        metadata = reinterpret_cast<perf_event_mmap_page*>(buffer);
     }
 
-    perf_event_mmap_page* metadata;
+    ~perf_fd()
+    {
+        ::close(fd);
+    }
+
+    void* buffer()
+    {
+        return _buffer;
+    }
 
     void enable()
     {
@@ -112,12 +118,26 @@ struct perf_session
         ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
-    ~perf_session()
+private:
+    int fd;
+    void* _buffer;
+};
+
+struct perf_session
+{
+    perf_session() : metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer()))
     {
-        close(fd);
     }
 
-    void* buffer;
+    void enable()
+    {
+        _fd.enable();
+    }
+
+    void disable()
+    {
+        _fd.disable();
+    }
 
     template<class F>
     void read_some(F&& f)
@@ -125,7 +145,7 @@ struct perf_session
         // man says that after reading data_head, rmb should be issued
         auto data_head = metadata->data_head;
         std::cerr << "head: " << data_head << '\n';
-        void* data = buffer + metadata->data_offset;
+        void* data = _fd.buffer() + metadata->data_offset;
         __sync_synchronize();
 
         cyclic_buffer_view data_buffer{data, metadata->data_size};
@@ -153,7 +173,9 @@ struct perf_session
     }
 
 private:
-    int fd;
+    perf_fd _fd;
+    perf_event_mmap_page* metadata;
+
 };
 
 int main(int argc, char **argv)
