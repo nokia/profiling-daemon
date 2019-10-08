@@ -95,7 +95,11 @@ struct perf_session
             perror("Cannot memory map sampling buffer\n");
             exit(EXIT_FAILURE);
         }
+
+        metadata = reinterpret_cast<perf_event_mmap_page*>(buffer);
     }
+
+    perf_event_mmap_page* metadata;
 
     void enable()
     {
@@ -108,17 +112,45 @@ struct perf_session
         ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
-    perf_event_mmap_page* metadata()
-    {
-        return reinterpret_cast<perf_event_mmap_page*>(buffer);
-    }
-
     ~perf_session()
     {
         close(fd);
     }
 
     void* buffer;
+
+    template<class F>
+    void read_some(F&& f)
+    {
+        // man says that after reading data_head, rmb should be issued
+        auto data_head = metadata->data_head;
+        std::cerr << "head: " << data_head << '\n';
+        void* data = buffer + metadata->data_offset;
+        __sync_synchronize();
+
+        cyclic_buffer_view data_buffer{data, metadata->data_size};
+
+        while (data_buffer.total_read_size() < data_head)
+        {
+            auto* header = data_buffer.read<perf_event_header>();
+            auto* sample = data_buffer.read<sample_t>();
+
+            if (header->type != PERF_RECORD_SAMPLE)
+                throw std::runtime_error("unsupported event type");
+
+            assert(header->size == sizeof(header) + sizeof(sample_t));
+
+            //std::cerr << sample << "ip: " << std::hex << sample->ip << std::endl;
+            f(*sample);
+        }
+
+        // we are done with the reading so we can write the tail to let the kernel know
+        // that it can continue with writes
+        // TODO
+        metadata->data_tail = data_buffer.total_read_size();
+        __sync_synchronize();
+        std::cerr << "tail: " << metadata->data_tail << '\n';
+    }
 
 private:
     int fd;
@@ -134,30 +166,10 @@ int main(int argc, char **argv)
 
     session.disable();
 
-    auto* metadata = session.metadata();
-
-    // man says that after reading data_head, rmb should be issued
-    auto data_head = metadata->data_head;
-    void* data = session.buffer + metadata->data_offset;
-    __sync_synchronize();
-
-    cyclic_buffer_view data_buffer{data, session.metadata()->data_size};
-
-    while (data_buffer.total_read_size() < data_head)
+    while(true)
+    session.read_some([](const auto& sample)
     {
-        auto* header = data_buffer.read<perf_event_header>();
-        auto* sample = data_buffer.read<sample_t>();
-
-        if (header->type != PERF_RECORD_SAMPLE)
-            throw std::runtime_error("unsupported event type");
-
-        assert(header->size == sizeof(header) + sizeof(sample_t));
-
-        std::cerr << "ip: " << std::hex << sample->ip << std::endl;
-    }
-
-    // we are done with the reading so we can write the tail to let the kernel know
-    // that it can continue with writes
-    // TODO
+        //std::cerr << "ip: " << sample.ip << '\n';
+    });
 }
 
