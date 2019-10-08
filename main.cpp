@@ -22,26 +22,31 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
 
 struct cyclic_buffer_view
 {
-    cyclic_buffer_view(void* start, std::size_t size)
+    cyclic_buffer_view(char* start, std::size_t size)
         : _start(start), _pointer(start), _size(size), _read_size(0)
     {
     }
 
     template<class T>
-    T* read()
+    T read()
     {
-        return reinterpret_cast<T*>(read(sizeof(T)));
-    }
-
-    void* read(std::size_t size)
-    {
-        if (_pointer + size > _start + _size)
-            throw std::runtime_error{"this read would wrap the buffer but this is not implemented yet"};
+        // value wraps around cyclic buffer
+        if (_pointer + sizeof(T) > _start + _size)
+        {
+            //throw std::runtime_error{"this read would wrap the buffer but this is not implemented yet"};
+            const auto size_at_the_bottom = _start + _size - _pointer;
+            const auto remainder_size = sizeof(T) - size_at_the_bottom;
+            T value;
+            ::memcpy(&value, _pointer, size_at_the_bottom);
+            ::memcpy(&value + size_at_the_bottom, _start, remainder_size);
+            _pointer = _start + remainder_size;
+            return value;
+        }
 
         auto old = _pointer;
-        _pointer += size;
-        _read_size += size;
-        return old;
+        _pointer += sizeof(T);
+        _read_size += sizeof(T);
+        return *reinterpret_cast<T*>(old);
     }
 
     auto total_read_size() const
@@ -50,8 +55,8 @@ struct cyclic_buffer_view
     }
 
 private:
-    void* _start;
-    void* _pointer;
+    char* _start;
+    char* _pointer;
     std::size_t _size;
     std::size_t _read_size;
 };
@@ -87,7 +92,7 @@ struct perf_fd
         constexpr std::size_t page_size = 4 * 1024;
         constexpr std::size_t mmap_size = page_size * 2;
 
-        _buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        _buffer = reinterpret_cast<char*>(mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
         if (_buffer == MAP_FAILED)
             throw std::runtime_error("mmap failed, I did never wonder why would it fail");
     }
@@ -97,7 +102,7 @@ struct perf_fd
         ::close(fd);
     }
 
-    void* buffer()
+    char* buffer()
     {
         return _buffer;
     }
@@ -115,7 +120,7 @@ struct perf_fd
 
 private:
     int fd;
-    void* _buffer;
+    char* _buffer;
 };
 
 struct perf_session
@@ -145,15 +150,15 @@ struct perf_session
 
         while (_data_view.total_read_size() < data_head)
         {
-            auto* header = _data_view.read<perf_event_header>();
-            auto* sample = _data_view.read<sample_t>();
+            auto header = _data_view.read<perf_event_header>();
+            auto sample = _data_view.read<sample_t>();
 
-            if (header->type != PERF_RECORD_SAMPLE)
+            if (header.type != PERF_RECORD_SAMPLE)
                 throw std::runtime_error("unsupported event type");
 
-            assert(header->size == sizeof(header) + sizeof(sample_t));
+            assert(header.size == sizeof(header) + sizeof(sample_t));
 
-            f(*sample);
+            f(sample);
         }
 
         // we are done with the reading so we can write the tail to let the kernel know
