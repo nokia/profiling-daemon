@@ -63,55 +63,78 @@ struct sample_t
     std::uint64_t time;
 };
 
+struct perf_session
+{
+    perf_session()
+    {
+        struct perf_event_attr pe;
+
+        memset(&pe, 0, sizeof(struct perf_event_attr));
+        pe.type = PERF_TYPE_HARDWARE;
+        pe.size = sizeof(struct perf_event_attr);
+        pe.config = PERF_COUNT_HW_INSTRUCTIONS;
+        pe.sample_freq = 7000;
+        pe.sample_type = sample_t::type;
+        pe.disabled = 1;
+        pe.exclude_kernel = 1;
+        pe.exclude_hv = 1;
+        pe.mmap = 1;
+        pe.freq = 1;
+
+        fd = perf_event_open(&pe, 0, -1, -1, 0);
+        if (fd == -1) {
+            fprintf(stderr, "Error opening leader %llx\n", pe.config);
+            exit(EXIT_FAILURE);
+        }
+
+        constexpr std::size_t page_size = 4 * 1024;
+        constexpr std::size_t mmap_size = page_size * 2;
+
+        buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (buffer == MAP_FAILED) {
+            perror("Cannot memory map sampling buffer\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    void enable()
+    {
+        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+        ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+    }
+
+    void disable()
+    {
+        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+    }
+
+    ~perf_session()
+    {
+        close(fd);
+    }
+
+    void* buffer;
+
+private:
+    int fd;
+};
+
 int main(int argc, char **argv)
 {
-    struct perf_event_attr pe;
-    long long count;
-    int fd;
-
-    memset(&pe, 0, sizeof(struct perf_event_attr));
-    pe.type = PERF_TYPE_HARDWARE;
-    pe.size = sizeof(struct perf_event_attr);
-    pe.config = PERF_COUNT_HW_INSTRUCTIONS;
-    pe.sample_freq = 7000;
-    pe.sample_type = sample_t::type;
-    pe.disabled = 1;
-    pe.exclude_kernel = 1;
-    pe.exclude_hv = 1;
-    pe.mmap = 1;
-    pe.freq = 1;
-
-    fd = perf_event_open(&pe, 0, -1, -1, 0);
-    if (fd == -1) {
-        fprintf(stderr, "Error opening leader %llx\n", pe.config);
-        exit(EXIT_FAILURE);
-    }
-
-    constexpr std::size_t page_size = 4 * 1024;
-    constexpr std::size_t mmap_size = page_size * 2;
-
-    void* buffer = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (buffer == MAP_FAILED) {
-        perror("Cannot memory map sampling buffer\n");
-        exit(EXIT_FAILURE);
-    }
-
-
-    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+    perf_session session;
+    session.enable();
 
     for (int i = 0; i < 1000; i++)
         printf("Measuring instruction count for this printf\n");
 
-    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-    //read(fd, &count, sizeof(long long));
+    session.disable();
 
-    const perf_event_mmap_page* metadata_page = reinterpret_cast<perf_event_mmap_page*>(buffer);
+    const perf_event_mmap_page* metadata_page = reinterpret_cast<perf_event_mmap_page*>(session.buffer);
     std::cerr << "metadata_page: " << metadata_page << std::endl;
     std::cerr << "metadata_page->data_head: " << metadata_page->data_head << std::endl;
     std::cerr << "metadata_page->data_offset: " << metadata_page->data_offset<< std::endl;
     std::cerr << "metadata_page->data_size: " << metadata_page->data_size<< std::endl;
-    void* data = buffer + metadata_page->data_offset;
+    void* data = session.buffer + metadata_page->data_offset;
 
     std::cerr << "data: " << data << std::endl;
 
@@ -136,8 +159,5 @@ int main(int argc, char **argv)
     // we are done with the reading so we can write the tail to let the kernel know
     // that it can continue with writes
     // TODO
-
-
-    close(fd);
 }
 
