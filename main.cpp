@@ -81,7 +81,7 @@ struct perf_fd
         pe.mmap = 1;
         pe.freq = 1;
 
-        fd = perf_event_open(&pe, 0, -1, -1, 0);
+        fd = perf_event_open(&pe, -1, 0, -1, 0);
         if (fd == -1) {
             fprintf(stderr, "Error opening leader %llx\n", pe.config);
             exit(EXIT_FAILURE);
@@ -177,15 +177,14 @@ int main(int argc, char **argv)
     perf_session session;
     session.enable();
 
-    for (int i = 0; i < 1000; i++)
-        printf("Measuring instruction count for this printf\n");
+    while(true)
+    {
+        session.read_some([](const auto& sample)
+        {
+            std::cerr << &sample << ", ip: " << sample.ip << '\n';
+        });
+    }
 
     session.disable();
-
-    while(true)
-    session.read_some([](const auto& sample)
-    {
-        std::cerr << &sample << ", ip: " << sample.ip << '\n';
-    });
 }
 
