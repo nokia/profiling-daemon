@@ -38,7 +38,7 @@ struct dso_info
 
 inline std::ostream& operator<<(std::ostream& os, const dso_info& dso)
 {
-    return os << dso.pathname << "+0x" << std::hex << dso.addr;
+    return os << dso.pathname << " 0x" << std::hex << dso.addr;
 }
 
 struct maps
@@ -52,7 +52,7 @@ struct maps
             {
                 dso_info dso;
                 dso.pathname = e.pathname;
-                dso.addr = 0; // TODO
+                dso.addr = ip - e.start + e.offset;
                 return dso;
             }
         }
