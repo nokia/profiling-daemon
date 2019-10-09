@@ -104,7 +104,7 @@ struct perf_fd
         perf_event_attr pe{};
         pe.type = PERF_TYPE_HARDWARE;
         pe.size = sizeof(struct perf_event_attr);
-        pe.config = PERF_COUNT_HW_INSTRUCTIONS;
+        pe.config = PERF_COUNT_HW_CPU_CYCLES;
         pe.sample_freq = 7000;
         pe.sample_type = sample_t::type;
         pe.disabled = 1;
