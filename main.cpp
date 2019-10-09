@@ -91,8 +91,9 @@ private:
 
 struct sample_t
 {
-    constexpr static std::uint32_t type = PERF_SAMPLE_IP | PERF_SAMPLE_TIME;
+    constexpr static std::uint32_t type = PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME;
     std::uint64_t ip;
+    std::uint32_t pid, tid;
     std::uint64_t time;
 };
 
@@ -192,11 +193,11 @@ int main(int argc, char **argv)
 {
     perf_session session;
 
-    while(true)
+    while (true)
     {
         session.read_some([](const auto& sample)
         {
-            std::cerr << "ip: " << std::hex << sample.ip << '\n';
+            std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
         });
     }
 }
