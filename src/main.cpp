@@ -71,8 +71,6 @@ int main(int argc, char **argv)
 
         session.read_some([&](const auto& sample)
         {
-            //std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
-
             auto it = pid_to_maps.find(sample.pid);
             if (it != pid_to_maps.end())
             {
