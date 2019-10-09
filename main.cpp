@@ -47,7 +47,6 @@ struct cyclic_buffer_view
         {
             const auto size_at_the_bottom = _start + _size - _pointer;
             const auto remainder_size = sizeof(T) - size_at_the_bottom;
-            std::cerr << "size_at_the_bottom: " << size_at_the_bottom << ", remainder_size: " << remainder_size << '\n';
             T value;
             ::memcpy(&value, _pointer, size_at_the_bottom);
             ::memcpy(trivial_pointer_advance(&value, size_at_the_bottom), _start, remainder_size);
@@ -191,7 +190,6 @@ struct perf_session
                     break;
                 }
                 default:
-                    std::cerr << "skip\n";
                     _data_view.skip(header.size - sizeof(perf_event_header));
             }
         }
