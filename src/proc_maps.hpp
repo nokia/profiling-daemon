@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <sstream>
+
 // 56373c46a000-56373c46b000 r-xp 00000000 103:02 10628889                  /usr/bin/python2.7
 // 56373c66a000-56373c66b000 r--p 00000000 103:02 10628889                  /usr/bin/python2.7
 // 56373c66b000-56373c66c000 rw-p 00001000 103:02 10628889                  /usr/bin/python2.7
@@ -18,8 +21,22 @@
 
 struct map_entry_t
 {
+    explicit map_entry_t(const std::string& s)
+    {
+        std::istringstream ss{s};
+        char _;
+        std::string _s;
+        ss >> std::hex >> start >> _ >> end >> perms >> offset >> _s >> _s >> pathname;
+    }
+
     std::uintptr_t start;
     std::uintptr_t end;
+    std::string perms;
     std::uintptr_t offset;
     std::string pathname;
+
+    bool exec() const
+    {
+        return perms.at(2) == 'x';
+    }
 };
