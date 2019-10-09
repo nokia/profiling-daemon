@@ -22,6 +22,13 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
     return ret;
 }
 
+template<class A, class B>
+auto trivial_pointer_add(A a, B b)
+{
+    char* ca = reinterpret_cast<char*>(a);
+    return reinterpret_cast<A>(ca + b);
+}
+
 struct cyclic_buffer_view
 {
     cyclic_buffer_view(char* start, std::size_t size)
@@ -37,9 +44,10 @@ struct cyclic_buffer_view
         {
             const auto size_at_the_bottom = _start + _size - _pointer;
             const auto remainder_size = sizeof(T) - size_at_the_bottom;
+            std::cerr << "size_at_the_bottom: " << size_at_the_bottom << ", remainder_size: " << remainder_size << '\n';
             T value;
             ::memcpy(&value, _pointer, size_at_the_bottom);
-            ::memcpy(&value + size_at_the_bottom, _start, remainder_size);
+            ::memcpy(trivial_pointer_add(&value, size_at_the_bottom), _start, remainder_size);
             _pointer = _start + remainder_size;
             _read_size += sizeof(T);
             return value;
@@ -49,6 +57,17 @@ struct cyclic_buffer_view
         _pointer += sizeof(T);
         _read_size += sizeof(T);
         return *reinterpret_cast<T*>(old);
+    }
+
+    void skip(std::size_t size)
+    {
+        if (_pointer + size > _start + _size)
+        {
+            throw std::runtime_error("not implemented");
+        }
+
+        _pointer += size;
+        _read_size += size;
     }
 
     auto total_read_size() const
@@ -154,18 +173,19 @@ struct perf_session
         {
             auto header = _data_view.read<perf_event_header>();
 
-            if (header.type != PERF_RECORD_SAMPLE)
+            switch (header.type)
             {
-                std::stringstream ss;
-                ss << "unsupported event type: " << header.type;
-                throw std::runtime_error{ss.str()};
+                case PERF_RECORD_SAMPLE:
+                {
+                    auto sample = _data_view.read<sample_t>();
+                    assert(header.size == sizeof(header) + sizeof(sample_t));
+                    f(sample);
+                    break;
+                }
+                default:
+                    std::cerr << "skip\n";
+                    _data_view.skip(header.size - sizeof(perf_event_header));
             }
-
-            auto sample = _data_view.read<sample_t>();
-
-            assert(header.size == sizeof(header) + sizeof(sample_t));
-
-            f(sample);
         }
 
         // we are done with the reading so we can write the tail to let the kernel know
