@@ -3,11 +3,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
+#include <sstream>
+#include <cassert>
+
 #include <sys/ioctl.h>
-#include <linux/perf_event.h>
 #include <asm/unistd.h>
 #include <sys/mman.h>
-#include <cassert>
+#include <linux/perf_event.h>
 
 static long
 perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
@@ -151,10 +153,15 @@ struct perf_session
         while (_data_view.total_read_size() < data_head)
         {
             auto header = _data_view.read<perf_event_header>();
-            auto sample = _data_view.read<sample_t>();
 
             if (header.type != PERF_RECORD_SAMPLE)
-                throw std::runtime_error("unsupported event type");
+            {
+                std::stringstream ss;
+                ss << "unsupported event type: " << header.type;
+                throw std::runtime_error{ss.str()};
+            }
+
+            auto sample = _data_view.read<sample_t>();
 
             assert(header.size == sizeof(header) + sizeof(sample_t));
 
