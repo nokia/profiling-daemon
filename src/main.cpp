@@ -6,8 +6,28 @@
 #include <sstream>
 #include <cassert>
 
+#include <sys/epoll.h>
+
 #include "perf.hpp"
 #include "proc_maps.hpp"
+
+struct event_loop
+{
+    event_loop()
+    {
+        _fd = ::epoll_create1(0);
+        if (_fd == -1)
+            throw std::runtime_error{"could not create epoll instance"};
+    }
+
+    ~event_loop()
+    {
+        ::close(_fd);
+    }
+
+private:
+    int _fd;
+};
 
 int main(int argc, char **argv)
 {
