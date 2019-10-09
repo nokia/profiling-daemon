@@ -111,26 +111,26 @@ struct perf_fd
         pe.mmap = 1;
         pe.freq = 1;
 
-        fd = perf_event_open(&pe, -1, 0, -1, 0);
+        _fd = perf_event_open(&pe, -1, 0, -1, 0);
 
-        if (fd == -1)
+        if (_fd == -1)
             throw std::runtime_error("perf_event_open failed, perhaps you do not have enough permissions");
 
         std::size_t page_size = sysconf(_SC_PAGESIZE);
         std::size_t mmap_size = page_size * 2;
 
-        _buffer = reinterpret_cast<char*>(mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+        _buffer = reinterpret_cast<char*>(mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0));
         if (_buffer == MAP_FAILED)
             throw std::runtime_error("mmap failed, I did never wonder why would it fail");
 
-        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-        ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+        ioctl(_fd, PERF_EVENT_IOC_RESET, 0);
+        ioctl(_fd, PERF_EVENT_IOC_ENABLE, 0);
     }
 
     ~perf_fd()
     {
-        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-        ::close(fd);
+        ioctl(_fd, PERF_EVENT_IOC_DISABLE, 0);
+        ::close(_fd);
     }
 
     char* buffer()
@@ -138,8 +138,13 @@ struct perf_fd
         return _buffer;
     }
 
+    auto fd() const
+    {
+        return _fd;
+    }
+
 private:
-    int fd;
+    int _fd;
     char* _buffer;
 };
 
@@ -179,6 +184,11 @@ struct perf_session
         // we are done with the reading so we can write the tail to let the kernel know
         // that it can continue with writes
         metadata->data_tail = _data_view.total_read_size();
+    }
+
+    auto fd() const
+    {
+        return _fd.fd();
     }
 
 private:
