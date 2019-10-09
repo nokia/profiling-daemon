@@ -33,13 +33,13 @@ struct cyclic_buffer_view
         // value wraps around cyclic buffer
         if (_pointer + sizeof(T) > _start + _size)
         {
-            //throw std::runtime_error{"this read would wrap the buffer but this is not implemented yet"};
             const auto size_at_the_bottom = _start + _size - _pointer;
             const auto remainder_size = sizeof(T) - size_at_the_bottom;
             T value;
             ::memcpy(&value, _pointer, size_at_the_bottom);
             ::memcpy(&value + size_at_the_bottom, _start, remainder_size);
             _pointer = _start + remainder_size;
+            _read_size += sizeof(T);
             return value;
         }
 
