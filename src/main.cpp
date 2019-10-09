@@ -11,6 +11,8 @@
 #include <sys/mman.h>
 #include <linux/perf_event.h>
 
+#include "proc_maps.hpp"
+
 static long
 perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
                 int cpu, int group_fd, unsigned long flags)
@@ -191,14 +193,15 @@ private:
 
 int main(int argc, char **argv)
 {
-    perf_session session;
+    parse_maps();
+    //perf_session session;
 
-    while (true)
-    {
-        session.read_some([](const auto& sample)
-        {
-            std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
-        });
-    }
+    //while (true)
+    //{
+    //    session.read_some([](const auto& sample)
+    //    {
+    //        std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
+    //    });
+    //}
 }
 
