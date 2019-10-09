@@ -63,12 +63,12 @@ struct maps
         return dso;
     }
 
+    std::string comm;
     std::vector<map_entry_t> entries;
 };
 
-maps parse_file(const std::string& path)
+maps read_maps(const std::string& path)
 {
-    std::cerr << path << '\n';
     maps ret;
     std::ifstream f{path};
     std::string line;
@@ -86,6 +86,14 @@ bool is_number(const std::string& s)
     return std::all_of(s.begin(), s.end(), [](char c) { return std::isdigit(c); });
 }
 
+std::string read_first_line(const std::string& path)
+{
+    std::ifstream f{path};
+    std::string line;
+    std::getline(f, line);
+    return line;
+}
+
 std::unordered_map<std::uint32_t, maps> parse_maps()
 {
     std::unordered_map<std::uint32_t, maps> ret;
@@ -96,7 +104,8 @@ std::unordered_map<std::uint32_t, maps> parse_maps()
         {
             std::uint32_t pid;
             std::stringstream{directory_name} >> pid;
-            auto m = parse_file((process_directory.path() / "maps").string());
+            auto m = read_maps((process_directory.path() / "maps").string());
+            m.comm = read_first_line((process_directory.path() / "comm").string());
             ret.emplace(pid, m);
         }
     }

@@ -76,7 +76,8 @@ int main(int argc, char **argv)
             auto it = pid_to_maps.find(sample.pid);
             if (it != pid_to_maps.end())
             {
-                std::cerr << it->second.find_dso(sample.ip) << '\n';
+                std::cerr << std::dec << it->first << " " << it->second.comm
+                          << ": " << it->second.find_dso(sample.ip) << '\n';
             }
 
             event_count++;
