@@ -38,6 +38,15 @@ struct event_loop
         }
     }
 
+    template<class F>
+    void run_forever(F&& f)
+    {
+        while (true)
+        {
+            run_once(f);
+        }
+    }
+
     ~event_loop()
     {
         ::close(_fd);
@@ -55,16 +64,18 @@ int main(int argc, char **argv)
 
     loop.add_fd(session.fd());
 
-    while (true)
-    loop.run_once([&]
+    loop.run_forever([&]
     {
-
         std::cerr << "waking up for perf data\n";
-        session.read_some([](const auto& sample)
+        std::size_t event_count = 0;
+
+        session.read_some([&](const auto& sample)
         {
             std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
+            event_count++;
         });
 
+        std::cerr << "captured " << std::dec << event_count << " events\n";
     });
 }
 
