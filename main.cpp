@@ -22,8 +22,11 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
     return ret;
 }
 
+/**
+ * Advance the pointer by bytes.
+ */
 template<class A, class B>
-auto trivial_pointer_add(A a, B b)
+auto trivial_pointer_advance(A a, B b)
 {
     char* ca = reinterpret_cast<char*>(a);
     return reinterpret_cast<A>(ca + b);
@@ -47,7 +50,7 @@ struct cyclic_buffer_view
             std::cerr << "size_at_the_bottom: " << size_at_the_bottom << ", remainder_size: " << remainder_size << '\n';
             T value;
             ::memcpy(&value, _pointer, size_at_the_bottom);
-            ::memcpy(trivial_pointer_add(&value, size_at_the_bottom), _start, remainder_size);
+            ::memcpy(trivial_pointer_advance(&value, size_at_the_bottom), _start, remainder_size);
             _pointer = _start + remainder_size;
             _read_size += sizeof(T);
             return value;
@@ -61,9 +64,14 @@ struct cyclic_buffer_view
 
     void skip(std::size_t size)
     {
+        // value wraps around cyclic buffer
         if (_pointer + size > _start + _size)
         {
-            throw std::runtime_error("not implemented");
+            const auto size_at_the_bottom = _start + _size - _pointer;
+            const auto remainder_size = size - size_at_the_bottom;
+            _pointer = _start + remainder_size;
+            _read_size += size;
+            return;
         }
 
         _pointer += size;
