@@ -123,27 +123,20 @@ struct perf_fd
         _buffer = reinterpret_cast<char*>(mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
         if (_buffer == MAP_FAILED)
             throw std::runtime_error("mmap failed, I did never wonder why would it fail");
+
+        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+        ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
     }
 
     ~perf_fd()
     {
+        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
         ::close(fd);
     }
 
     char* buffer()
     {
         return _buffer;
-    }
-
-    void enable()
-    {
-        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-        ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
-    }
-
-    void disable()
-    {
-        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
     }
 
 private:
@@ -157,16 +150,6 @@ struct perf_session
         : metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer())),
           _data_view{_fd.buffer() + metadata->data_offset, metadata->data_size}
     {
-    }
-
-    void enable()
-    {
-        _fd.enable();
-    }
-
-    void disable()
-    {
-        _fd.disable();
     }
 
     template<class F>
@@ -208,16 +191,13 @@ private:
 int main(int argc, char **argv)
 {
     perf_session session;
-    session.enable();
 
     while(true)
     {
         session.read_some([](const auto& sample)
         {
-            std::cerr << &sample << ", ip: " << sample.ip << '\n';
+            std::cerr << "ip: " << std::hex << sample.ip << '\n';
         });
     }
-
-    session.disable();
 }
 
