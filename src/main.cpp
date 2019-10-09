@@ -194,14 +194,15 @@ private:
 int main(int argc, char **argv)
 {
     parse_maps();
-    //perf_session session;
+    perf_session session;
 
-    //while (true)
-    //{
-    //    session.read_some([](const auto& sample)
-    //    {
-    //        std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
-    //    });
-    //}
+    while (true)
+    {
+        std::cerr << "buf\n";
+        session.read_some([](const auto& sample)
+        {
+            std::cerr << std::dec << "pid: " << sample.pid << ", tid: " << sample.tid << ", ip: " << std::hex << sample.ip << '\n';
+        });
+    }
 }
 
