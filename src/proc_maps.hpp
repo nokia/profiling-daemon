@@ -8,6 +8,33 @@
 #include <cctype>
 #include <boost/filesystem.hpp>
 
+struct kernel_symbols
+{
+    struct kernel_symbol
+    {
+        kernel_symbol(const std::string& s)
+        {
+            std::stringstream{s} >> addr >> mode >> name >> module;
+        }
+
+        std::uintptr_t addr;
+        char mode;
+        std::string name;
+        std::string module;
+    };
+
+    kernel_symbols()
+    {
+        std::ifstream f{"/proc/kallsyms"};
+        std::string line;
+        while (std::getline(f, line))
+            _symbols.emplace_back(line);
+    }
+
+private:
+    std::vector<kernel_symbol> _symbols;
+};
+
 struct map_entry_t
 {
     explicit map_entry_t(const std::string& s)
