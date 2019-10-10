@@ -29,6 +29,7 @@ struct kernel_symbols
         std::string line;
         while (std::getline(f, line))
             _symbols.emplace_back(line);
+        std::cerr << "read " << _symbols.size() << " kernel symbols\n";
     }
 
 private:
@@ -125,7 +126,7 @@ struct running_processes_snapshot
 {
     running_processes_snapshot()
     {
-        load_exec_maps();
+        load_processes_map();
     }
 
     process_info find(std::uint32_t pid) const
@@ -137,7 +138,7 @@ struct running_processes_snapshot
     }
 
 private:
-    void load_exec_maps()
+    void load_processes_map()
     {
         for (const auto& process_directory : boost::filesystem::directory_iterator{"/proc/"})
         {
@@ -156,4 +157,5 @@ private:
     }
 
     std::unordered_map<std::uint32_t, process_info> _processes;
+    kernel_symbols _kernel_symbols;
 };

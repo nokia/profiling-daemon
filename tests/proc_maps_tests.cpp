@@ -1,5 +1,5 @@
 #include "catch2/catch.hpp"
-#include "proc_maps.hpp"
+#include "proc.hpp"
 
 TEST_CASE("parse 1")
 {
