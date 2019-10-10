@@ -51,20 +51,16 @@ private:
 
 const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
 
-int main(int argc, char **argv)
+template<class Maps>
+void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
 {
-    auto pid_to_maps = parse_maps();
-    perf_session session;
-    event_loop loop;
-
-    fifo crl_fifo{CONTROL_FIFO_PATH};
-    std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
-
-    loop.add_fd(session.fd());
-
     std::cerr << "starting profile\n";
 
-    loop.run_for(std::chrono::seconds(3), [&]
+    event_loop loop;
+    perf_session session;
+    loop.add_fd(session.fd());
+
+    loop.run_for(secs, [&]
     {
         std::cerr << "waking up for perf data\n";
         std::size_t event_count = 0;
@@ -75,7 +71,7 @@ int main(int argc, char **argv)
             if (it != pid_to_maps.end())
             {
                 std::cerr << std::dec << it->first << " " << it->second.comm
-                          << ": " << it->second.find_dso(sample.ip) << '\n';
+                        << ": " << it->second.find_dso(sample.ip) << '\n';
             }
 
             event_count++;
@@ -83,5 +79,27 @@ int main(int argc, char **argv)
 
         std::cerr << "captured " << std::dec << event_count << " events\n";
     });
+}
+
+int main(int argc, char **argv)
+{
+    auto pid_to_maps = parse_maps();
+
+    while (true)
+    {
+        event_loop loop;
+
+        fifo control_fifo{CONTROL_FIFO_PATH};
+        std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
+
+        loop.add_fd(control_fifo.fd());
+        loop.run_forever([&]
+        {
+            std::cerr << "woke up by control fifo\n";
+            loop.stop();
+        });
+
+        profile_for(pid_to_maps, std::chrono::seconds(3));
+    }
 }
 

@@ -37,7 +37,8 @@ struct event_loop
     template<class F>
     void run_forever(F&& f)
     {
-        while (true)
+        _running = true;
+        while (_running)
         {
             run_once(std::forward<F>(f));
         }
@@ -47,8 +48,14 @@ struct event_loop
     void run_for(std::chrono::milliseconds duration, F&& f)
     {
         _run_until = clock::now() + duration;
-        while (clock::now() < _run_until)
+        _running = true;
+        while (clock::now() < _run_until && _running)
             run_once(std::forward<F>(f));
+    }
+
+    void stop()
+    {
+        _running = false;
     }
 
     ~event_loop()
@@ -59,5 +66,6 @@ struct event_loop
 private:
     clock::time_point _run_until;
     int _fd;
+    bool _running;
 };
 
