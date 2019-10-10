@@ -4,6 +4,7 @@
 #include <ostream>
 #include <iomanip>
 #include <pthread.h>
+#include <thread>
 
 struct current_time
 {
@@ -34,3 +35,24 @@ void set_this_thread_scheduling(thread_priority priority)
     if (ret)
         throw std::runtime_error("failed to set thread scheduling");
 }
+
+struct watchdog
+{
+    watchdog()
+    {
+        auto increment = [&]
+        {
+            while (true)
+            {
+                _counter++;
+                std::this_thread::sleep_for(std::chrono::seconds{1});
+            }
+        };
+
+        _thread = std::thread{increment};
+    }
+
+private:
+    std::atomic<int> _counter;
+    std::thread _thread;
+};
