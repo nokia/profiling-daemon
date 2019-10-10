@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
     loop.add_fd(session.fd());
 
-    loop.run_forever([&]
+    loop.run_for(std::chrono::seconds(3), [&]
     {
         std::cerr << "waking up for perf data\n";
         std::size_t event_count = 0;
