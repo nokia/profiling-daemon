@@ -6,9 +6,50 @@
 #include <sstream>
 #include <cassert>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include "perf.hpp"
 #include "proc_maps.hpp"
 #include "event_loop.hpp"
+
+struct fifo
+{
+    explicit fifo(const char* path) : _path(path)
+    {
+        int ret = ::mkfifo(_path, 0x666);
+        if (ret != 0)
+            throw std::runtime_error{"could not create control fifo"};
+
+        _fd = ::open(_path, O_RDONLY | O_NONBLOCK);
+        if (_fd == -1)
+            throw std::runtime_error{"could not open control fifo for reading"};
+    }
+
+    ~fifo()
+    {
+        ::close(_fd);
+        ::unlink(_path);
+    }
+
+    char read()
+    {
+        char ret;
+        ::read(_fd, &ret, sizeof(ret));
+        return ret;
+    }
+
+    int fd() const
+    {
+        return _fd;
+    }
+
+private:
+    const char* _path;
+    int _fd;
+};
+
+const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
 
 int main(int argc, char **argv)
 {
@@ -16,7 +57,12 @@ int main(int argc, char **argv)
     perf_session session;
     event_loop loop;
 
+    fifo crl_fifo{CONTROL_FIFO_PATH};
+    std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
+
     loop.add_fd(session.fd());
+
+    std::cerr << "starting profile\n";
 
     loop.run_for(std::chrono::seconds(3), [&]
     {
