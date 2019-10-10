@@ -11,6 +11,7 @@
 #include "fifo.hpp"
 #include "proc_maps.hpp"
 #include "event_loop.hpp"
+#include "utils.hpp"
 
 const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
 
@@ -30,11 +31,10 @@ void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
     perf_session session;
     loop.add_fd(session.fd());
 
+    std::cout << current_time{} << std::endl;
+
     loop.run_for(secs, [&]
     {
-        std::cerr << "waking up for perf data\n";
-        std::size_t event_count = 0;
-
         session.read_some([&](const auto& sample)
         {
             auto it = pid_to_maps.find(sample.pid);
@@ -43,12 +43,10 @@ void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
                 std::cout << std::dec << it->first << " " << it->second.comm
                           << " " << it->second.find_dso(sample.ip) << std::endl;
             }
-
-            event_count++;
         });
-
-        std::cerr << "captured " << std::dec << event_count << " events\n";
     });
+
+    std::cout << std::endl;
 }
 
 void wait_for_trigger()
