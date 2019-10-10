@@ -3,13 +3,14 @@
 #include <chrono>
 #include <queue>
 
+#include <signal.h>
 #include <sys/epoll.h>
 
 struct event_loop
 {
     using clock = std::chrono::steady_clock;
 
-    event_loop()
+    event_loop(volatile sig_atomic_t& signal_status) : _signal_status(signal_status)
     {
         _fd = ::epoll_create1(0);
         if (_fd == -1)
@@ -38,7 +39,7 @@ struct event_loop
     void run_forever(F&& f)
     {
         _running = true;
-        while (_running)
+        while (_running && !_signal_status)
         {
             run_once(std::forward<F>(f));
         }
@@ -49,7 +50,7 @@ struct event_loop
     {
         _run_until = clock::now() + duration;
         _running = true;
-        while (clock::now() < _run_until && _running)
+        while (clock::now() < _run_until && _running && !_signal_status)
             run_once(std::forward<F>(f));
     }
 
@@ -67,5 +68,6 @@ private:
     clock::time_point _run_until;
     int _fd;
     bool _running;
+    volatile sig_atomic_t& _signal_status;
 };
 
