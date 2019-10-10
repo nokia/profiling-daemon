@@ -70,6 +70,9 @@ int main(int argc, char **argv)
 
     running_processes_snapshot proc;
 
+    std::cerr << "doing initial profiling\n";
+    profile_for(proc, std::chrono::seconds(3));
+
     while (!signal_status)
     {
         wait_for_trigger();

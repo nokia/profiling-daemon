@@ -21,6 +21,11 @@ struct kernel_symbols
         char mode;
         std::string name;
         std::string module;
+
+        bool operator<(const kernel_symbol& other)
+        {
+            return addr < other.addr;
+        }
     };
 
     kernel_symbols()
@@ -29,6 +34,7 @@ struct kernel_symbols
         std::string line;
         while (std::getline(f, line))
             _symbols.emplace_back(line);
+        std::sort(_symbols.begin(), _symbols.end());
         std::cerr << "read " << _symbols.size() << " kernel symbols\n";
     }
 
