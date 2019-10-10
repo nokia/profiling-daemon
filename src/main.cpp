@@ -23,7 +23,7 @@ void signal_handler(int signal)
 }
 
 template<class Maps>
-void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
+void profile_for(const Maps& processes, std::chrono::seconds secs)
 {
     std::cerr << "starting profile\n";
 
@@ -32,17 +32,14 @@ void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
     loop.add_fd(session.fd());
 
     std::cout << current_time{} << std::endl;
+    std::cout << "pid comm dso addr" << std::endl;
 
     loop.run_for(secs, [&]
     {
         session.read_some([&](const auto& sample)
         {
-            auto it = pid_to_maps.find(sample.pid);
-            if (it != pid_to_maps.end())
-            {
-                std::cout << std::dec << it->first << " " << it->second.comm
-                          << " " << it->second.find_dso(sample.ip) << std::endl;
-            }
+            auto p = processes.find(sample.pid);
+            std::cout << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
         });
     });
 
@@ -71,14 +68,14 @@ int main(int argc, char **argv)
 {
     ::signal(SIGINT, signal_handler);
 
-    auto pid_to_maps = parse_maps();
+    running_processes_snapshot proc;
 
     while (!signal_status)
     {
         wait_for_trigger();
 
         if (!signal_status)
-            profile_for(pid_to_maps, std::chrono::seconds(3));
+            profile_for(proc, std::chrono::seconds(3));
     }
 }
 

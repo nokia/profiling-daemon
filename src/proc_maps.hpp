@@ -41,42 +41,16 @@ inline std::ostream& operator<<(std::ostream& os, const dso_info& dso)
     return os << dso.pathname << " 0x" << std::hex << dso.addr;
 }
 
-struct maps
+auto read_maps(const std::string& path)
 {
-    dso_info find_dso(std::uintptr_t ip) const
-    {
-        for (const auto& e : entries)
-        {
-            // TODO: not sure about this range
-            if (ip >= e.start && ip < e.end)
-            {
-                dso_info dso;
-                dso.pathname = e.pathname;
-                dso.addr = ip - e.start + e.offset;
-                return dso;
-            }
-        }
-
-        dso_info dso;
-        dso.pathname = "??";
-        dso.addr = ip;
-        return dso;
-    }
-
-    std::string comm;
-    std::vector<map_entry_t> entries;
-};
-
-maps read_maps(const std::string& path)
-{
-    maps ret;
+    std::vector<map_entry_t> ret;
     std::ifstream f{path};
     std::string line;
     while (std::getline(f, line))
     {
         map_entry_t e{line};
         if (e.exec())
-            ret.entries.push_back(e);
+            ret.push_back(e);
     }
     return ret;
 }
@@ -94,21 +68,68 @@ std::string read_first_line(const std::string& path)
     return line;
 }
 
-std::unordered_map<std::uint32_t, maps> parse_maps()
+struct process_info
 {
-    std::unordered_map<std::uint32_t, maps> ret;
-    for (const auto& process_directory : boost::filesystem::directory_iterator{"/proc/"})
+    dso_info find_dso(std::uintptr_t ip) const
     {
-        auto directory_name = process_directory.path().filename().string();
-        if (is_number(directory_name))
+        for (const auto& e : maps)
         {
-            std::uint32_t pid;
-            std::stringstream{directory_name} >> pid;
-            auto m = read_maps((process_directory.path() / "maps").string());
-            m.comm = read_first_line((process_directory.path() / "comm").string());
-            ret.emplace(pid, m);
+            // TODO: not sure about this range
+            if (ip >= e.start && ip < e.end)
+            {
+                dso_info dso;
+                dso.pathname = e.pathname;
+                dso.addr = ip - e.start + e.offset;
+                return dso;
+            }
         }
+
+        dso_info dso;
+        dso.pathname = "??";
+        dso.addr = ip;
+        return dso;
     }
-    std::cerr << "read exec maps from " << ret.size() << " running processes\n";
-    return ret;
-}
+
+    std::string comm = "??";
+    std::vector<map_entry_t> maps;
+};
+
+struct running_processes_snapshot
+{
+    running_processes_snapshot()
+    {
+        load_exec_maps();
+    }
+
+    process_info find(std::uint32_t pid) const
+    {
+        auto it = _processes.find(pid);
+        if (it != _processes.end())
+        {
+            return it->second;
+        }
+
+        return process_info{};
+    }
+
+private:
+    void load_exec_maps()
+    {
+        for (const auto& process_directory : boost::filesystem::directory_iterator{"/proc/"})
+        {
+            auto directory_name = process_directory.path().filename().string();
+            if (is_number(directory_name))
+            {
+                std::uint32_t pid;
+                std::stringstream{directory_name} >> pid;
+                process_info p;
+                p.comm = read_first_line((process_directory.path() / "comm").string());
+                p.maps = read_maps((process_directory.path() / "maps").string());
+                _processes.emplace(pid, p);
+            }
+        }
+        std::cerr << "took map snapshot of " << _processes.size() << " running processes\n";
+    }
+
+    std::unordered_map<std::uint32_t, process_info> _processes;
+};
