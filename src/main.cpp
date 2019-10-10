@@ -78,6 +78,7 @@ void wait_for_trigger()
 
 int main(int argc, char **argv)
 {
+    set_this_thread_scheduling(thread_priority::high);
     ::signal(SIGINT, signal_handler);
 
     running_processes_snapshot proc;

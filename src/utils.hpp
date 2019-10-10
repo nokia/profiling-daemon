@@ -24,12 +24,13 @@ enum class thread_priority
 
 void set_this_thread_scheduling(thread_priority priority)
 {
-    int sched = priority == thread_priority::low ? 50 : 20;
-    int prio = priority == thread_priority::low ? SCHED_OTHER : SCHED_FIFO;
+    int sched = priority == thread_priority::low ? SCHED_OTHER : SCHED_FIFO;
+    int prio = priority == thread_priority::low ? 50 : sched_get_priority_max(sched);
 
-    ::sched_param param;
+    ::sched_param param{};
     param.sched_priority = prio;
     int ret = pthread_setschedparam(pthread_self(), sched, &param);
+    std::cerr << ret;
     if (ret)
         throw std::runtime_error("failed to set thread scheduling");
 }
