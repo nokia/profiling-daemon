@@ -9,7 +9,7 @@
 
 #include "perf.hpp"
 #include "fifo.hpp"
-#include "proc_maps.hpp"
+#include "proc.hpp"
 #include "event_loop.hpp"
 #include "utils.hpp"
 
