@@ -17,10 +17,14 @@ struct kernel_symbols
             std::stringstream{s} >> addr >> mode >> name >> module;
         }
 
+        kernel_symbol()
+        {
+        }
+
         std::uintptr_t addr;
-        char mode;
-        std::string name;
-        std::string module;
+        char mode = '?';
+        std::string name = "??";
+        std::string module = "??";
 
         bool operator<(const kernel_symbol& other)
         {
@@ -36,6 +40,15 @@ struct kernel_symbols
             _symbols.emplace_back(line);
         std::sort(_symbols.begin(), _symbols.end());
         std::cerr << "read " << _symbols.size() << " kernel symbols\n";
+    }
+
+    kernel_symbol find(std::uintptr_t ip) const
+    {
+        kernel_symbol ksym;
+        ksym.addr = ip;
+        ksym.module = "??";
+        ksym.name = "??";
+        return ksym;
     }
 
 private:
@@ -68,11 +81,14 @@ struct dso_info
 {
     std::string pathname;
     std::uintptr_t addr;
+
+    // in case of kallsyms, we have the name of the symbol
+    std::string name;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const dso_info& dso)
 {
-    return os << dso.pathname << " 0x" << std::hex << dso.addr;
+    return os << dso.pathname << " 0x" << std::hex << dso.addr << ' ' << dso.name;
 }
 
 auto read_maps(const std::string& path)
@@ -104,6 +120,10 @@ std::string read_first_line(const std::string& path)
 
 struct process_info
 {
+    process_info(const kernel_symbols& syms) : _kernel_symbols{syms}
+    {
+    }
+
     dso_info find_dso(std::uintptr_t ip) const
     {
         for (const auto& e : maps)
@@ -118,14 +138,19 @@ struct process_info
             }
         }
 
+        // assuming it is a kernel sym
+        const auto& ksym = _kernel_symbols.find(ip);
+
         dso_info dso;
-        dso.pathname = "??";
+        dso.pathname = ksym.module;
         dso.addr = ip;
+        dso.name = ksym.name;
         return dso;
     }
 
     std::string comm = "??";
     std::vector<map_entry_t> maps;
+    const kernel_symbols& _kernel_symbols;
 };
 
 struct running_processes_snapshot
@@ -140,7 +165,7 @@ struct running_processes_snapshot
         auto it = _processes.find(pid);
         if (it != _processes.end())
             return it->second;
-        return process_info{};
+        return process_info{_kernel_symbols};
     }
 
 private:
@@ -153,7 +178,7 @@ private:
             {
                 std::uint32_t pid;
                 std::stringstream{directory_name} >> pid;
-                process_info p;
+                process_info p{_kernel_symbols};
                 p.comm = read_first_line((process_directory.path() / "comm").string());
                 p.maps = read_maps((process_directory.path() / "maps").string());
                 _processes.emplace(pid, p);
