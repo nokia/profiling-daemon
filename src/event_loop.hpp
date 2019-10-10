@@ -25,14 +25,16 @@ struct event_loop
     }
 
     template<class F>
-    void run_once(F&& f)
+    bool run_once(F&& f, std::chrono::milliseconds timeout = std::chrono::milliseconds{-1})
     {
         epoll_event ev[1];
-        auto ret = epoll_wait(_fd, ev, 1, -1);
+        auto ret = epoll_wait(_fd, ev, 1, timeout.count());
         if (ret == 1)
         {
             f();
+            return true;
         }
+        return false;
     }
 
     template<class F>
@@ -40,18 +42,34 @@ struct event_loop
     {
         _running = true;
         while (_running && !_signal_status)
-        {
             run_once(std::forward<F>(f));
+    }
+
+    template<class F, class Timeout>
+    void run_for(std::chrono::milliseconds duration, F&& f, Timeout&& timeout)
+    {
+        _run_until = clock::now() + duration;
+        _running = true;
+
+        while (true)
+        {
+            if (clock::now() >= _run_until)
+            {
+                timeout();
+                return;
+            }
+
+            if (!_running || _signal_status)
+                return;
+
+            run_once(std::forward<F>(f), std::chrono::duration_cast<std::chrono::milliseconds>(_run_until - clock::now()));
         }
     }
 
     template<class F>
     void run_for(std::chrono::milliseconds duration, F&& f)
     {
-        _run_until = clock::now() + duration;
-        _running = true;
-        while (clock::now() < _run_until && _running && !_signal_status)
-            run_once(std::forward<F>(f));
+        run_for(duration, std::forward<F>(f), []{});
     }
 
     void stop()

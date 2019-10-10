@@ -57,11 +57,23 @@ void wait_for_trigger()
     std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
     std::cerr << "waiting for trigger\n";
 
-    loop.run_forever([&]
+    bool trigger = false;
+    while (!trigger && !signal_status)
     {
-        std::cerr << "woke up by control fifo\n";
-        loop.stop();
-    });
+        auto read_control_fifo = [&]
+        {
+            std::cerr << "woke up by control fifo\n";
+            loop.stop();
+            trigger = true;
+        };
+
+        auto timeout = [&]
+        {
+            std::cerr << "timeout, check watchdog counter\n";
+        };
+
+        loop.run_for(std::chrono::seconds{5}, read_control_fifo, timeout);
+    }
 }
 
 int main(int argc, char **argv)
