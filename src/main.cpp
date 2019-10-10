@@ -32,8 +32,8 @@ void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
             auto it = pid_to_maps.find(sample.pid);
             if (it != pid_to_maps.end())
             {
-                std::cerr << std::dec << it->first << " " << it->second.comm
-                        << ": " << it->second.find_dso(sample.ip) << '\n';
+                std::cout << std::dec << it->first << " " << it->second.comm
+                          << " " << it->second.find_dso(sample.ip) << std::endl;
             }
 
             event_count++;
@@ -48,9 +48,11 @@ void wait_for_trigger()
     event_loop loop;
 
     fifo control_fifo{CONTROL_FIFO_PATH};
-    std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
-
     loop.add_fd(control_fifo.fd());
+
+    std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
+    std::cerr << "waiting for trigger\n";
+
     loop.run_forever([&]
     {
         std::cerr << "woke up by control fifo\n";
