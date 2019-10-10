@@ -106,7 +106,7 @@ struct perf_fd
         pe.sample_freq = 7000;
         pe.sample_type = sample_t::type;
         pe.disabled = 1;
-        pe.exclude_kernel = 1;
+        pe.exclude_kernel = 0;
         pe.exclude_hv = 1;
         pe.mmap = 1;
         pe.freq = 1;
