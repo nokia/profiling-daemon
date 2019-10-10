@@ -105,10 +105,7 @@ struct running_processes_snapshot
     {
         auto it = _processes.find(pid);
         if (it != _processes.end())
-        {
             return it->second;
-        }
-
         return process_info{};
     }
 
