@@ -46,6 +46,7 @@ void profile_for(const Maps& pid_to_maps, std::chrono::seconds secs)
         });
     });
 
+    std::cerr << "done\n";
     std::cout << std::endl;
 }
 
