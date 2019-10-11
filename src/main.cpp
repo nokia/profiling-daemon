@@ -85,6 +85,7 @@ int main(int argc, char **argv)
 {
     set_this_thread_name("poor-profiler");
     ::signal(SIGINT, signal_handler);
+    ::signal(SIGTERM, signal_handler);
 
     fifo control_fifo{CONTROL_FIFO_PATH};
     running_processes_snapshot proc;
