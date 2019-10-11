@@ -33,6 +33,16 @@ void set_this_thread_name(const char* name)
         throw std::runtime_error("failed to set thread name");
 }
 
+void set_this_thread_affinity(std::size_t cpu)
+{
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu, &cpuset);
+    int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (ret)
+        throw std::runtime_error("failed to set thread affinity");
+}
+
 struct watchdog
 {
     watchdog()
