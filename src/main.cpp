@@ -47,7 +47,7 @@ void profile_for(const Maps& processes, std::chrono::seconds secs)
     std::cout << std::endl;
 }
 
-void wait_for_trigger()
+void wait_for_trigger(watchdog& wdg)
 {
     event_loop loop{signal_status};
 
@@ -69,10 +69,16 @@ void wait_for_trigger()
 
         auto timeout = [&]
         {
-            std::cerr << "timeout, check watchdog counter\n";
+            std::cerr << "watchdog ping\n";
+            if (!wdg.ping())
+            {
+                std::cerr << "normal thread is starved\n";
+                loop.stop();
+                trigger = true;
+            }
         };
 
-        loop.run_for(std::chrono::seconds{5}, read_control_fifo, timeout);
+        loop.run_for(std::chrono::seconds{6}, read_control_fifo, timeout);
     }
 }
 
@@ -90,7 +96,7 @@ int main(int argc, char **argv)
 
     while (!signal_status)
     {
-        wait_for_trigger();
+        wait_for_trigger(wdg);
 
         if (!signal_status)
             profile_for(proc, std::chrono::seconds(3));
