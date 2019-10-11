@@ -47,11 +47,10 @@ void profile_for(const Maps& processes, std::chrono::seconds secs)
     std::cout << std::endl;
 }
 
-void wait_for_trigger(watchdog& wdg)
+void wait_for_trigger(fifo& control_fifo, watchdog& wdg)
 {
     event_loop loop{signal_status};
 
-    fifo control_fifo{CONTROL_FIFO_PATH};
     loop.add_fd(control_fifo.fd());
 
     std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
@@ -87,6 +86,7 @@ int main(int argc, char **argv)
     set_this_thread_name("poor-profiler");
     ::signal(SIGINT, signal_handler);
 
+    fifo control_fifo{CONTROL_FIFO_PATH};
     running_processes_snapshot proc;
     watchdog wdg;
 
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
     while (!signal_status)
     {
-        wait_for_trigger(wdg);
+        wait_for_trigger(control_fifo, wdg);
 
         if (!signal_status)
             profile_for(proc, std::chrono::seconds(3));
