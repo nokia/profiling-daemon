@@ -55,7 +55,7 @@ struct watchdog
             while (_running.load(std::memory_order_relaxed))
             {
                 _flag.store(true, std::memory_order_relaxed);
-                std::this_thread::sleep_for(std::chrono::seconds{5});
+                std::this_thread::sleep_for(std::chrono::seconds{1});
             }
         };
 

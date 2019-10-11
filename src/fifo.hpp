@@ -7,6 +7,9 @@ struct fifo
 {
     explicit fifo(const char* path) : _path(path)
     {
+        // do not care about errors here
+        ::unlink(path);
+
         int ret = ::mkfifo(_path, 0x666);
         if (ret != 0)
             throw std::runtime_error{"could not create control fifo"};

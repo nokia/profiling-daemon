@@ -40,18 +40,18 @@ void profile_for(const Maps& processes, std::chrono::seconds secs)
         session.read_some([&](const auto& sample)
         {
             auto p = processes.find(sample.pid);
-            //std::cout << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
+            f << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
         });
     });
 
-    f << "done" << std::endl;
-    std::cout << std::endl;
+    f << "done\n" << std::endl;
 }
 
-void wait_for_trigger(fifo& control_fifo, watchdog& wdg)
+void wait_for_trigger(watchdog& wdg)
 {
     event_loop loop{signal_status};
 
+    fifo control_fifo{CONTROL_FIFO_PATH};
     loop.add_fd(control_fifo.fd());
 
     std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
@@ -63,7 +63,7 @@ void wait_for_trigger(fifo& control_fifo, watchdog& wdg)
         auto read_control_fifo = [&]
         {
             std::cerr << "woke up by control fifo\n";
-            control_fifo.read();
+            std::cerr << control_fifo.read();
             loop.stop();
             trigger = true;
         };
@@ -79,17 +79,17 @@ void wait_for_trigger(fifo& control_fifo, watchdog& wdg)
             }
         };
 
-        loop.run_for(std::chrono::seconds{6}, read_control_fifo, timeout);
+        loop.run_for(std::chrono::seconds{2}, read_control_fifo, timeout);
     }
 }
 
 int main(int argc, char **argv)
 {
     set_this_thread_name("poor-profiler");
+    set_this_thread_affinity(1);
     ::signal(SIGINT, signal_handler);
     ::signal(SIGTERM, signal_handler);
 
-    fifo control_fifo{CONTROL_FIFO_PATH};
     running_processes_snapshot proc;
     watchdog wdg;
 
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
     while (!signal_status)
     {
-        wait_for_trigger(control_fifo, wdg);
+        wait_for_trigger(wdg);
 
         if (!signal_status)
             profile_for(proc, std::chrono::seconds(3));
