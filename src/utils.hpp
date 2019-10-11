@@ -39,6 +39,7 @@ struct watchdog
     {
         auto normal_thread = [&]
         {
+            set_this_thread_name("poor-watchdog");
             while (_running.load(std::memory_order_relaxed))
             {
                 _flag.store(true, std::memory_order_relaxed);

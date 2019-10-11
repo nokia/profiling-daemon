@@ -84,12 +84,14 @@ void wait_for_trigger(watchdog& wdg)
 
 int main(int argc, char **argv)
 {
-    set_this_thread_into_realtime();
+    set_this_thread_name("poor-profiler");
     ::signal(SIGINT, signal_handler);
 
+    running_processes_snapshot proc;
     watchdog wdg;
 
-    running_processes_snapshot proc;
+    // childs inherit sched so set it after watchdog is started
+    set_this_thread_into_realtime();
 
     std::cerr << "doing initial profiling\n";
     profile_for(proc, std::chrono::seconds(3));
