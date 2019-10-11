@@ -14,6 +14,7 @@
 #include "utils.hpp"
 
 const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
+const char* PROFILE_OUTPUT = "/rom/profile.txt";
 
 volatile sig_atomic_t signal_status = 0;
 
@@ -31,19 +32,19 @@ void profile_for(const Maps& processes, std::chrono::seconds secs)
     perf_session session;
     loop.add_fd(session.fd());
 
-    std::cout << current_time{} << std::endl;
-    std::cout << "pid comm dso addr" << std::endl;
+    std::fstream f{PROFILE_OUTPUT, std::fstream::out | std::fstream:: app | std::fstream::ate};
+    f << current_time{} << '\n';
 
     loop.run_for(secs, [&]
     {
         session.read_some([&](const auto& sample)
         {
             auto p = processes.find(sample.pid);
-            std::cout << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
+            //std::cout << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
         });
     });
 
-    std::cerr << "done\n";
+    f << "done" << std::endl;
     std::cout << std::endl;
 }
 
@@ -62,6 +63,7 @@ void wait_for_trigger(fifo& control_fifo, watchdog& wdg)
         auto read_control_fifo = [&]
         {
             std::cerr << "woke up by control fifo\n";
+            control_fifo.read();
             loop.stop();
             trigger = true;
         };
