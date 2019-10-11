@@ -94,9 +94,6 @@ int main(int argc, char **argv)
     // childs inherit sched so set it after watchdog is started
     set_this_thread_into_realtime();
 
-    std::cerr << "doing initial profiling\n";
-    profile_for(proc, std::chrono::seconds(3));
-
     while (!signal_status)
     {
         wait_for_trigger(control_fifo, wdg);
