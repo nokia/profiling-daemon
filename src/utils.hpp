@@ -52,6 +52,7 @@ struct watchdog
 
     ~watchdog()
     {
+        std::cerr << "waiting for watchdog thread to stop\n";
         _running.store(false, std::memory_order_relaxed);
         _thread.join();
     }
