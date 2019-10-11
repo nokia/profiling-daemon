@@ -78,8 +78,10 @@ void wait_for_trigger()
 
 int main(int argc, char **argv)
 {
-    set_this_thread_scheduling(thread_priority::high);
+    set_this_thread_into_realtime();
     ::signal(SIGINT, signal_handler);
+
+    watchdog wdg;
 
     running_processes_snapshot proc;
 
