@@ -119,7 +119,7 @@ struct perf_fd
         std::size_t page_size = sysconf(_SC_PAGESIZE);
         std::size_t mmap_size = page_size * 2;
 
-        _buffer = reinterpret_cast<char*>(mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0));
+        _buffer = reinterpret_cast<char*>(::mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0));
         if (_buffer == MAP_FAILED)
             throw std::runtime_error("mmap failed, I did never wonder why would it fail");
 
@@ -153,7 +153,7 @@ struct perf_session
     perf_session(std::size_t cpu)
         : _fd{cpu},
           _metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer())),
-          _data_view{_fd.buffer() + _metadata->data_offset, metadata->data_size}
+          _data_view{_fd.buffer() + _metadata->data_offset, _metadata->data_size}
     {
     }
 
