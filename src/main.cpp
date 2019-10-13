@@ -29,7 +29,7 @@ void profile_for(const Maps& processes, std::chrono::seconds secs)
     std::cerr << "starting profile\n";
 
     event_loop loop{signal_status};
-    perf_session session;
+    perf_session session{0};
     loop.add_fd(session.fd());
 
     std::fstream f{PROFILE_OUTPUT, std::fstream::out | std::fstream:: app | std::fstream::ate};

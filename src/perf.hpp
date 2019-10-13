@@ -97,7 +97,7 @@ struct sample_t
 
 struct perf_fd
 {
-    perf_fd()
+    explicit perf_fd(std::size_t cpu)
     {
         perf_event_attr pe{};
         pe.type = PERF_TYPE_HARDWARE;
@@ -111,7 +111,7 @@ struct perf_fd
         pe.mmap = 1;
         pe.freq = 1;
 
-        _fd = perf_event_open(&pe, -1, 0, -1, 0);
+        _fd = perf_event_open(&pe, -1, cpu, -1, 0);
 
         if (_fd == -1)
             throw std::runtime_error("perf_event_open failed, perhaps you do not have enough permissions");
@@ -150,9 +150,10 @@ private:
 
 struct perf_session
 {
-    perf_session()
-        : metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer())),
-          _data_view{_fd.buffer() + metadata->data_offset, metadata->data_size}
+    perf_session(std::size_t cpu)
+        : _fd{cpu},
+          _metadata(reinterpret_cast<perf_event_mmap_page*>(_fd.buffer())),
+          _data_view{_fd.buffer() + _metadata->data_offset, metadata->data_size}
     {
     }
 
@@ -160,7 +161,7 @@ struct perf_session
     void read_some(F&& f)
     {
         // man says that after reading data_head, rmb should be issued
-        auto data_head = metadata->data_head;
+        auto data_head = _metadata->data_head;
         __sync_synchronize();
 
         while (_data_view.total_read_size() < data_head)
@@ -183,7 +184,7 @@ struct perf_session
 
         // we are done with the reading so we can write the tail to let the kernel know
         // that it can continue with writes
-        metadata->data_tail = _data_view.total_read_size();
+        _metadata->data_tail = _data_view.total_read_size();
     }
 
     auto fd() const
@@ -193,7 +194,7 @@ struct perf_session
 
 private:
     perf_fd _fd;
-    perf_event_mmap_page* metadata;
+    perf_event_mmap_page* _metadata;
     cyclic_buffer_view _data_view;
 };
 
