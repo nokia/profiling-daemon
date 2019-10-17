@@ -23,8 +23,7 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
-template<class Maps>
-void profile_for(const Maps& processes, std::chrono::seconds secs)
+void profile_for(const running_processes_snapshot& processes, std::chrono::seconds secs)
 {
     std::cerr << "starting profile\n";
 
