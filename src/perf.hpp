@@ -116,8 +116,7 @@ struct perf_fd
         if (_fd == -1)
             throw std::runtime_error("perf_event_open failed, perhaps you do not have enough permissions");
 
-        std::size_t page_size = sysconf(_SC_PAGESIZE);
-        std::size_t mmap_size = page_size * 2;
+        std::size_t mmap_size = sysconf(_SC_PAGESIZE) * 2;
 
         _buffer = reinterpret_cast<char*>(::mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0));
         if (_buffer == MAP_FAILED)
