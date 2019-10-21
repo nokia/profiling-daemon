@@ -7,6 +7,8 @@
 #include <cassert>
 #include <signal.h>
 
+#include <boost/program_options.hpp>
+
 #include "perf.hpp"
 #include "fifo.hpp"
 #include "proc.hpp"
@@ -14,7 +16,6 @@
 #include "utils.hpp"
 
 const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
-const char* PROFILE_OUTPUT = "/rom/profile.txt";
 
 volatile sig_atomic_t signal_status = 0;
 
@@ -23,7 +24,7 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
-void profile_for(const running_processes_snapshot& processes, std::chrono::seconds secs)
+void profile_for(const std::string& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
 {
     std::cerr << "starting profile\n";
 
@@ -31,7 +32,7 @@ void profile_for(const running_processes_snapshot& processes, std::chrono::secon
     perf_session session{0};
     loop.add_fd(session.fd());
 
-    std::fstream f{PROFILE_OUTPUT, std::fstream::out | std::fstream:: app | std::fstream::ate};
+    std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
     f << current_time{} << '\n';
 
     loop.run_for(secs, [&]
@@ -82,8 +83,33 @@ void wait_for_trigger(watchdog& wdg)
     }
 }
 
+auto parse_options(int argc, char **argv)
+{
+    namespace po = boost::program_options;
+
+    po::options_description desc;
+    desc.add_options()
+        ("output", po::value<std::string>()->default_value("/rom/profile.txt"));
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    return vm;
+}
+
 int main(int argc, char **argv)
 {
+    const auto options = parse_options(argc, argv);
+    const auto output = options["output"].as<std::string>();
+
+    std::cerr << "watchdog mode, output: " << output << "\n";
+
+    {
+        std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
+        f << current_time{} << ": watchdog mode started\n\n";
+    }
+
     set_this_thread_name("poor-profiler");
     set_this_thread_affinity(1);
     ::signal(SIGINT, signal_handler);
@@ -100,7 +126,7 @@ int main(int argc, char **argv)
         wait_for_trigger(wdg);
 
         if (!signal_status)
-            profile_for(proc, std::chrono::seconds(3));
+            profile_for(output, proc, std::chrono::seconds(3));
     }
 }
 

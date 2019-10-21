@@ -6,7 +6,7 @@ find_package(Threads REQUIRED)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(poor-perf src/main.cpp)
-target_link_libraries(poor-perf Catch2::Catch2 boost_system boost_filesystem Threads::Threads)
+target_link_libraries(poor-perf Catch2::Catch2 boost_program_options boost_system boost_filesystem Threads::Threads)
 
 add_subdirectory(3rd-party/Catch2)
 add_executable(poor-perf-tests tests/main.cpp tests/proc_maps_tests.cpp)
