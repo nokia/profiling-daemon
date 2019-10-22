@@ -24,6 +24,14 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
+std::fstream open_file_for_writing(const std::string& output)
+{
+    std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
+    if (!f)
+        throw std::runtime_error{"could not open '" + output + "' for writing"};
+    return std::move(f);
+}
+
 void profile_for(const std::string& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
 {
     std::cerr << "starting profile\n";
@@ -32,8 +40,7 @@ void profile_for(const std::string& output, const running_processes_snapshot& pr
     perf_session session{0};
     loop.add_fd(session.fd());
 
-    std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
-    f << current_time{} << '\n';
+    auto f = open_file_for_writing(output);
 
     loop.run_for(secs, [&]
     {
@@ -47,7 +54,26 @@ void profile_for(const std::string& output, const running_processes_snapshot& pr
     f << "done\n" << std::endl;
 }
 
-void wait_for_trigger(watchdog& wdg)
+enum class trigger
+{
+    none,
+    control_fifo,
+    watchdog
+};
+
+std::ostream& operator<<(std::ostream& os, trigger trigger)
+{
+    switch (trigger)
+    {
+        case trigger::none: return os << "none";
+        case trigger::control_fifo: return os << "control fifo";
+        case trigger::watchdog: return os << "watchdog";
+        default: return os << "<unknown>";
+    }
+    return os;
+}
+
+auto wait_for_trigger(watchdog& wdg)
 {
     event_loop loop{signal_status};
 
@@ -57,15 +83,15 @@ void wait_for_trigger(watchdog& wdg)
     std::cerr << "control fifo created at " << CONTROL_FIFO_PATH << '\n';
     std::cerr << "waiting for trigger\n";
 
-    bool trigger = false;
-    while (!trigger && !signal_status)
+    auto trigger = trigger::none;
+    while (trigger == trigger::none && !signal_status)
     {
         auto read_control_fifo = [&]
         {
             std::cerr << "woke up by control fifo\n";
             std::cerr << control_fifo.read();
             loop.stop();
-            trigger = true;
+            trigger = trigger::control_fifo;
         };
 
         auto timeout = [&]
@@ -73,14 +99,16 @@ void wait_for_trigger(watchdog& wdg)
             std::cerr << "watchdog ping\n";
             if (!wdg.ping())
             {
-                std::cerr << "normal thread is starved\n";
+                std::cerr << "watchdog is starved\n";
                 loop.stop();
-                trigger = true;
+                trigger = trigger::watchdog;
             }
         };
 
         loop.run_for(std::chrono::seconds{2}, read_control_fifo, timeout);
     }
+
+    return trigger;
 }
 
 auto parse_options(int argc, char **argv)
@@ -104,11 +132,7 @@ int main(int argc, char **argv)
     const auto output = options["output"].as<std::string>();
 
     std::cerr << "watchdog mode, output: " << output << "\n";
-
-    {
-        std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
-        f << current_time{} << ": watchdog mode started\n\n";
-    }
+    open_file_for_writing(output) << current_time{} << ": watchdog mode started\n\n";
 
     set_this_thread_name("poor-profiler");
     set_this_thread_affinity(1);
@@ -123,10 +147,13 @@ int main(int argc, char **argv)
 
     while (!signal_status)
     {
-        wait_for_trigger(wdg);
+        auto t = wait_for_trigger(wdg);
 
-        if (!signal_status)
+        if (t != trigger::none)
+        {
+            open_file_for_writing(output) << current_time{} << ": woke up by " << t << '\n';
             profile_for(output, proc, std::chrono::seconds(3));
+        }
     }
 }
 
