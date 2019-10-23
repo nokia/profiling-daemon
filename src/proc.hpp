@@ -127,37 +127,8 @@ std::string read_first_line(const std::string& path)
 
 struct process_info
 {
-    process_info(const kernel_symbols& syms) : _kernel_symbols{syms}
-    {
-    }
-
-    dso_info find_dso(std::uintptr_t ip) const
-    {
-        for (const auto& e : maps)
-        {
-            // TODO: not sure about this range
-            if (ip >= e.start && ip < e.end)
-            {
-                dso_info dso;
-                dso.pathname = e.pathname;
-                dso.addr = ip - e.start + e.offset;
-                return dso;
-            }
-        }
-
-        // assuming it is a kernel sym
-        const auto& ksym = _kernel_symbols.find(ip);
-
-        dso_info dso;
-        dso.pathname = ksym.module;
-        dso.addr = ip;
-        dso.name = ksym.name;
-        return dso;
-    }
-
     std::string comm = "??";
     std::vector<map_entry_t> maps;
-    const kernel_symbols& _kernel_symbols;
 };
 
 struct running_processes_snapshot
@@ -165,14 +136,6 @@ struct running_processes_snapshot
     running_processes_snapshot()
     {
         load_processes_map();
-    }
-
-    process_info find(std::uint32_t pid) const
-    {
-        auto it = _processes.find(pid);
-        if (it != _processes.end())
-            return it->second;
-        return process_info{_kernel_symbols};
     }
 
     dso_info find_symbol(std::uint32_t pid, std::uintptr_t ip) const
@@ -235,7 +198,7 @@ private:
             {
                 std::uint32_t pid;
                 std::stringstream{directory_name} >> pid;
-                process_info p{_kernel_symbols};
+                process_info p;
                 p.comm = read_first_line((process_directory.path() / "comm").string());
                 p.maps = read_maps((process_directory.path() / "maps").string());
                 _processes.emplace(pid, p);
