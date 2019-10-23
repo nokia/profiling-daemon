@@ -90,28 +90,24 @@ output_stream& operator<<(output_stream& os, T&& t)
     return os;
 }
 
-void profile_for(const std::string& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
+void profile_for(output_stream& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
 {
-    std::cerr << "starting profile\n";
-
     event_loop loop{signal_status};
     perf_session session{0};
     loop.add_fd(session.fd());
-
-    output_stream out{output};
 
     loop.run_for(secs, [&]
     {
         session.read_some([&](const auto& sample)
         {
             auto p = processes.find(sample.pid);
-            out << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << '\n';
+            output << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << '\n';
         });
 
-        out.stream().flush();
+        output.stream().flush();
     });
 
-    out << "done\n\n";
+    output.message("done");
 }
 
 enum class trigger
@@ -234,12 +230,11 @@ void watchdog_mode(const boost::program_options::variables_map& options)
 
         if (t != trigger::none)
         {
-            {
-                output_stream f{output};
-                f.message("woke up by ", t);
-            }
-
-            profile_for(output, proc, std::chrono::seconds(3));
+            // I want to make sure that after profiling is done, the
+            // file is flushed and closed
+            output_stream f{output};
+            f.message("woke up by ", t);
+            profile_for(f, proc, std::chrono::seconds(3));
         }
     }
 }
@@ -249,13 +244,9 @@ void oneshot_mode(const boost::program_options::variables_map& options)
     running_processes_snapshot proc;
     set_this_thread_into_realtime();
     const auto output = options["output"].as<std::string>();
-
-    {
-        output_stream f{output};
-        f.message("oneshot profiling");
-    }
-
-    profile_for(output, proc, std::chrono::seconds(3));
+    output_stream f{output};
+    f.message("oneshot profiling");
+    profile_for(f, proc, std::chrono::seconds(3));
 }
 
 } // namespace
