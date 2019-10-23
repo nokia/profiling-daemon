@@ -225,11 +225,10 @@ void watchdog_mode(const boost::program_options::variables_map& options)
     watchdog wdg;
 
     const auto output = options["output"].as<std::string>();
-    std::cerr << "watchdog mode, output: " << output << "\n";
 
     {
         output_stream f{output};
-        f << current_time{} << ": watchdog mode started\n\n";
+        f.message("watchdog mode started");
     }
 
     // childs inherit sched so set it after watchdog is started
