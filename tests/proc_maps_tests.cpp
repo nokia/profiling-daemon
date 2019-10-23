@@ -1,6 +1,9 @@
 #include "catch2/catch.hpp"
 #include "proc.hpp"
 
+namespace poor_perf
+{
+
 TEST_CASE("parse 1")
 {
     map_entry_t entry{"56373c46a000-56373c46b000 r-xp 0000000a 103:02 10628889                  /usr/bin/python2.7"};
@@ -31,3 +34,5 @@ TEST_CASE("parse 3")
     REQUIRE(entry.pathname == "[vsyscall]");
     REQUIRE(entry.exec());
 }
+
+} // namespace

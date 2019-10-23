@@ -9,6 +9,9 @@
 
 #include <boost/filesystem.hpp>
 
+namespace poor_perf
+{
+
 struct kernel_symbols
 {
     struct kernel_symbol
@@ -225,3 +228,5 @@ private:
     std::unordered_map<std::uint32_t, process_info> _processes;
     kernel_symbols _kernel_symbols;
 };
+
+} // namespace
