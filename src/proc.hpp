@@ -6,6 +6,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <cctype>
+
 #include <boost/filesystem.hpp>
 
 struct kernel_symbols
@@ -14,7 +15,7 @@ struct kernel_symbols
     {
         kernel_symbol(const std::string& s)
         {
-            std::stringstream{s} >> addr >> mode >> name >> module;
+            std::stringstream{s} >> std::hex >> addr >> mode >> name >> module;
         }
 
         kernel_symbol()
@@ -22,11 +23,11 @@ struct kernel_symbols
         }
 
         std::uintptr_t addr;
-        char mode = '?';
-        std::string name = "??";
-        std::string module = "??";
+        char mode;
+        std::string name;
+        std::string module = "<kernelmain>";
 
-        bool operator<(const kernel_symbol& other)
+        bool operator<(const kernel_symbol& other) const
         {
             return addr < other.addr;
         }
@@ -44,11 +45,23 @@ struct kernel_symbols
 
     kernel_symbol find(std::uintptr_t ip) const
     {
-        kernel_symbol ksym;
-        ksym.addr = ip;
-        ksym.module = "??";
-        ksym.name = "??";
-        return ksym;
+        auto less = [](std::uintptr_t a, kernel_symbol b)
+        {
+            return a < b.addr;
+        };
+
+        auto it = std::upper_bound(std::next(_symbols.begin()), _symbols.end(), ip, less);
+
+        if (it == _symbols.end())
+        {
+            kernel_symbol ksym;
+            ksym.addr = ip;
+            ksym.module = "<nokernel>";
+            ksym.name = "-";
+            return ksym;
+        }
+
+        return *std::prev(it);
     }
 
 private:
@@ -177,9 +190,11 @@ struct running_processes_snapshot
 
         if (region == proc.maps.end())
         {
-            // TODO: don't know what to do with it
-            ret.pathname = "<no region>";
+            // last chance is to get it from kallsyms
+            auto s = _kernel_symbols.find(ip);
+            ret.pathname = s.module;
             ret.addr = ip;
+            ret.name = s.name;
             return ret;
         }
 
