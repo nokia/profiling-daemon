@@ -27,6 +27,19 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
+template<class Arg, class... Args>
+void stream_to(std::ostream& os, Arg&& arg, Args&&... args)
+{
+    os << arg;
+    stream_to(os, std::forward<Args>(args)...);
+}
+
+template<class Arg>
+void stream_to(std::ostream& os, Arg&& arg)
+{
+    os << arg;
+}
+
 /**
  * Wrapper over fstream that can optionaly hold a reference to cout.
  */
@@ -45,12 +58,33 @@ struct output_stream
         }
     }
 
+    /**
+     * Prints message to both output stream and std::cerr.
+     */
+    template<class... Args>
+    void message(Args&&... args)
+    {
+        stream_to(stream(), current_time{}, ": ", std::forward<Args>(args)...);
+        stream() << '\n';
+
+        if (!streaming_to_stdout())
+        {
+            stream_to(std::cerr, current_time{}, ": ", std::forward<Args>(args)...);
+            std::cerr << '\n';
+        }
+    }
+
     std::ostream& stream()
     {
         return *_output;
     }
 
 private:
+    bool streaming_to_stdout() const
+    {
+        return _output == &std::cout;
+    }
+
     std::ostream* _output;
     std::fstream _fstream;
 };
@@ -79,6 +113,8 @@ void profile_for(const std::string& output, const running_processes_snapshot& pr
             auto p = processes.find(sample.pid);
             out << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << '\n';
         });
+
+        out.stream().flush();
     });
 
     out << "done\n\n";
@@ -207,7 +243,7 @@ void watchdog_mode(const boost::program_options::variables_map& options)
         {
             {
                 output_stream f{output};
-                f << current_time{} << ": woke up by " << t << '\n';
+                f.message("woke up by ", t);
             }
 
             profile_for(output, proc, std::chrono::seconds(3));
