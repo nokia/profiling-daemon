@@ -15,6 +15,9 @@
 #include "event_loop.hpp"
 #include "utils.hpp"
 
+namespace poor_perf
+{
+
 const char* CONTROL_FIFO_PATH = "/run/poor-profiler";
 
 volatile sig_atomic_t signal_status = 0;
@@ -111,13 +114,40 @@ auto wait_for_trigger(watchdog& wdg)
     return trigger;
 }
 
+enum class mode_t
+{
+    watchdog,
+    oneshot
+};
+
+std::istream& operator>>(std::istream& is, mode_t& mode)
+{
+    std::string s;
+    is >> s;
+
+    if (s == "watchdog")
+        mode = mode_t::watchdog;
+    else if (s == "oneshot")
+        mode = mode_t::oneshot;
+    else
+        is.setstate(std::ios_base::failbit);
+
+    return is;
+}
+
+std::ostream& operator<<(std::ostream& os, const mode_t& mode)
+{
+    return os << "mode";
+}
+
 auto parse_options(int argc, char **argv)
 {
     namespace po = boost::program_options;
 
     po::options_description desc;
     desc.add_options()
-        ("output", po::value<std::string>()->default_value("/rom/profile.txt"));
+        ("output", po::value<std::string>()->default_value("/rom/profile.txt"))
+        ("mode", po::value<mode_t>()->default_value(mode_t::watchdog));
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -126,21 +156,14 @@ auto parse_options(int argc, char **argv)
     return vm;
 }
 
-int main(int argc, char **argv)
+void watchdog_mode(const boost::program_options::variables_map& options)
 {
-    const auto options = parse_options(argc, argv);
-    const auto output = options["output"].as<std::string>();
-
-    std::cerr << "watchdog mode, output: " << output << "\n";
-    open_file_for_writing(output) << current_time{} << ": watchdog mode started\n\n";
-
-    set_this_thread_name("poor-profiler");
-    set_this_thread_affinity(1);
-    ::signal(SIGINT, signal_handler);
-    ::signal(SIGTERM, signal_handler);
-
     running_processes_snapshot proc;
     watchdog wdg;
+
+    const auto output = options["output"].as<std::string>();
+    std::cerr << "watchdog mode, output: " << output << "\n";
+    open_file_for_writing(output) << current_time{} << ": watchdog mode started\n\n";
 
     // childs inherit sched so set it after watchdog is started
     set_this_thread_into_realtime();
@@ -154,6 +177,41 @@ int main(int argc, char **argv)
             open_file_for_writing(output) << current_time{} << ": woke up by " << t << '\n';
             profile_for(output, proc, std::chrono::seconds(3));
         }
+    }
+}
+
+void oneshot_mode(const boost::program_options::variables_map& options)
+{
+    running_processes_snapshot proc;
+
+    const auto output = options["output"].as<std::string>();
+    std::cerr << "oneshot mode, output: " << output << "\n";
+
+    set_this_thread_into_realtime();
+
+    open_file_for_writing(output) << current_time{} << ": oneshot profiling\n";
+    profile_for(output, proc, std::chrono::seconds(3));
+}
+
+} // namespace
+
+int main(int argc, char **argv)
+{
+    const auto options = poor_perf::parse_options(argc, argv);
+
+    ::set_this_thread_name("poor-perf");
+    ::set_this_thread_affinity(1);
+    ::signal(SIGINT, poor_perf::signal_handler);
+    ::signal(SIGTERM, poor_perf::signal_handler);
+
+    switch (options["mode"].as<poor_perf::mode_t>())
+    {
+    case poor_perf::mode_t::watchdog:
+        poor_perf::watchdog_mode(options);
+        break;
+    case poor_perf::mode_t::oneshot:
+        poor_perf::oneshot_mode(options);
+        break;
     }
 }
 
