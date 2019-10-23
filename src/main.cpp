@@ -27,17 +27,15 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
+void stream_to(std::ostream& os)
+{
+}
+
 template<class Arg, class... Args>
 void stream_to(std::ostream& os, Arg&& arg, Args&&... args)
 {
     os << arg;
     stream_to(os, std::forward<Args>(args)...);
-}
-
-template<class Arg>
-void stream_to(std::ostream& os, Arg&& arg)
-{
-    os << arg;
 }
 
 /**
@@ -64,14 +62,10 @@ struct output_stream
     template<class... Args>
     void message(Args&&... args)
     {
-        stream_to(stream(), current_time{}, ": ", std::forward<Args>(args)...);
-        stream() << '\n';
+        stream_to(stream(), current_time{}, ": ", std::forward<Args>(args)..., '\n');
 
         if (!streaming_to_stdout())
-        {
-            stream_to(std::cerr, current_time{}, ": ", std::forward<Args>(args)...);
-            std::cerr << '\n';
-        }
+            stream_to(std::cerr, current_time{}, ": ", std::forward<Args>(args)..., '\n');
     }
 
     std::ostream& stream()
@@ -253,15 +247,12 @@ void watchdog_mode(const boost::program_options::variables_map& options)
 void oneshot_mode(const boost::program_options::variables_map& options)
 {
     running_processes_snapshot proc;
-
-    const auto output = options["output"].as<std::string>();
-    std::cerr << "oneshot mode, output: " << output << "\n";
-
     set_this_thread_into_realtime();
+    const auto output = options["output"].as<std::string>();
 
     {
         output_stream f{output};
-        f << current_time{} << ": oneshot profiling\n";
+        f.message("oneshot profiling");
     }
 
     profile_for(output, proc, std::chrono::seconds(3));
