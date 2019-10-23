@@ -39,7 +39,13 @@ void profile_for(output_stream& output, const running_processes_snapshot& proces
         session.read_some([&](const auto& sample)
         {
             auto s = processes.find_symbol(sample.pid, sample.ip);
-            output << std::dec << sample.pid << ' ' << s.comm << ' ' << s << '\n';
+
+            output << std::dec << sample.pid << ' '
+                   << s.comm << ' '
+                   << s.pathname <<
+                   " 0x" << std::hex << s.addr << ' '
+                   << s.name << '\n';
+
         });
 
         output.stream().flush();

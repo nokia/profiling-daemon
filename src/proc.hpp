@@ -99,7 +99,7 @@ struct region_t
     }
 };
 
-struct dso_info
+struct symbol_t
 {
     std::string comm;
     std::string pathname;
@@ -108,11 +108,6 @@ struct dso_info
     // in case of kallsyms, we have the name of the symbol
     std::string name;
 };
-
-inline std::ostream& operator<<(std::ostream& os, const dso_info& dso)
-{
-    return os << dso.pathname << " 0x" << std::hex << dso.addr << ' ' << dso.name;
-}
 
 auto read_maps(const std::string& path)
 {
@@ -154,12 +149,12 @@ struct running_processes_snapshot
         load_processes_map();
     }
 
-    dso_info find_symbol(std::uint32_t pid, std::uintptr_t ip) const
+    symbol_t find_symbol(std::uint32_t pid, std::uintptr_t ip) const
     {
         if (pid == 0)
         {
             // https://en.wikipedia.org/wiki/Parent_process#Unix-like_systems
-            dso_info ret;
+            symbol_t ret;
             ret.comm = "<swapper>";
             ret.pathname = "-";
             ret.addr = ip;
@@ -175,7 +170,7 @@ struct running_processes_snapshot
         if (proc_it == _processes.end())
         {
             // this process was probably started after poor-perf
-            dso_info ret;
+            symbol_t ret;
             ret.comm = "<no maps>";
             ret.pathname = "-";
             ret.addr = ip;
@@ -185,7 +180,7 @@ struct running_processes_snapshot
 
         const auto& proc = proc_it->second;
 
-        dso_info ret;
+        symbol_t ret;
         ret.comm = proc.comm;
         ret.name = "-";
 
