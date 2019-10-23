@@ -71,9 +71,9 @@ private:
     std::vector<kernel_symbol> _symbols;
 };
 
-struct map_entry_t
+struct region_t
 {
-    explicit map_entry_t(const std::string& s)
+    explicit region_t(const std::string& s)
     {
         std::istringstream ss{s};
         char _;
@@ -116,12 +116,12 @@ inline std::ostream& operator<<(std::ostream& os, const dso_info& dso)
 
 auto read_maps(const std::string& path)
 {
-    std::vector<map_entry_t> ret;
+    std::vector<region_t> ret;
     std::ifstream f{path};
     std::string line;
     while (std::getline(f, line))
     {
-        map_entry_t e{line};
+        region_t e{line};
         if (e.exec())
             ret.push_back(e);
     }
@@ -144,7 +144,7 @@ std::string read_first_line(const std::string& path)
 struct process_info
 {
     std::string comm = "??";
-    std::vector<map_entry_t> maps;
+    std::vector<region_t> maps;
 };
 
 struct running_processes_snapshot
