@@ -27,12 +27,39 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
-std::fstream open_file_for_writing(const std::string& output)
+/**
+ * Wrapper over fstream that can optionaly hold a reference to cout.
+ */
+struct output_stream
 {
-    std::fstream f{output, std::fstream::out | std::fstream:: app | std::fstream::ate};
-    if (!f)
-        throw std::runtime_error{"could not open '" + output + "' for writing"};
-    return std::move(f);
+    output_stream(const std::string& output)
+    {
+        if (output == "-")
+            _output = &std::cout;
+        else
+        {
+            _fstream.open(output, std::fstream::out | std::fstream:: app | std::fstream::ate);
+            if (!_fstream)
+                throw std::runtime_error{"could not open '" + output + "' for writing"};
+            _output = &_fstream;
+        }
+    }
+
+    std::ostream& stream()
+    {
+        return *_output;
+    }
+
+private:
+    std::ostream* _output;
+    std::fstream _fstream;
+};
+
+template<class T>
+output_stream& operator<<(output_stream& os, T&& t)
+{
+    os.stream() << t;
+    return os;
 }
 
 void profile_for(const std::string& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
@@ -43,18 +70,18 @@ void profile_for(const std::string& output, const running_processes_snapshot& pr
     perf_session session{0};
     loop.add_fd(session.fd());
 
-    auto f = open_file_for_writing(output);
+    output_stream out{output};
 
     loop.run_for(secs, [&]
     {
         session.read_some([&](const auto& sample)
         {
             auto p = processes.find(sample.pid);
-            f << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << std::endl;
+            out << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << '\n';
         });
     });
 
-    f << "done\n" << std::endl;
+    out << "done\n\n";
 }
 
 enum class trigger
@@ -163,7 +190,11 @@ void watchdog_mode(const boost::program_options::variables_map& options)
 
     const auto output = options["output"].as<std::string>();
     std::cerr << "watchdog mode, output: " << output << "\n";
-    open_file_for_writing(output) << current_time{} << ": watchdog mode started\n\n";
+
+    {
+        output_stream f{output};
+        f << current_time{} << ": watchdog mode started\n\n";
+    }
 
     // childs inherit sched so set it after watchdog is started
     set_this_thread_into_realtime();
@@ -174,7 +205,11 @@ void watchdog_mode(const boost::program_options::variables_map& options)
 
         if (t != trigger::none)
         {
-            open_file_for_writing(output) << current_time{} << ": woke up by " << t << '\n';
+            {
+                output_stream f{output};
+                f << current_time{} << ": woke up by " << t << '\n';
+            }
+
             profile_for(output, proc, std::chrono::seconds(3));
         }
     }
@@ -189,7 +224,11 @@ void oneshot_mode(const boost::program_options::variables_map& options)
 
     set_this_thread_into_realtime();
 
-    open_file_for_writing(output) << current_time{} << ": oneshot profiling\n";
+    {
+        output_stream f{output};
+        f << current_time{} << ": oneshot profiling\n";
+    }
+
     profile_for(output, proc, std::chrono::seconds(3));
 }
 
