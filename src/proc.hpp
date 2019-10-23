@@ -71,6 +71,12 @@ struct map_entry_t
     std::uintptr_t offset;
     std::string pathname;
 
+    bool contains(std::uintptr_t ip) const
+    {
+        // TODO: not sure about this range
+        return ip >= start && ip < end;
+    }
+
     bool exec() const
     {
         return perms.at(2) == 'x';
@@ -79,6 +85,7 @@ struct map_entry_t
 
 struct dso_info
 {
+    std::string comm;
     std::string pathname;
     std::uintptr_t addr;
 
@@ -166,6 +173,56 @@ struct running_processes_snapshot
         if (it != _processes.end())
             return it->second;
         return process_info{_kernel_symbols};
+    }
+
+    dso_info find_symbol(std::uint32_t pid, std::uintptr_t ip) const
+    {
+        if (pid == 0)
+        {
+            // https://en.wikipedia.org/wiki/Parent_process#Unix-like_systems
+            dso_info ret;
+            ret.comm = "<swapper>";
+            ret.pathname = "-";
+            ret.addr = ip;
+
+            // symbol is most likely some arch-dependent hlt instruction so
+            // we do not bother about looking for it
+            ret.name = "-";
+            return ret;
+        }
+
+        auto proc_it = _processes.find(pid);
+
+        if (proc_it == _processes.end())
+        {
+            // this process was probably started after poor-perf
+            dso_info ret;
+            ret.comm = "<no maps>";
+            ret.pathname = "-";
+            ret.addr = ip;
+            ret.name = "-";
+            return ret;
+        }
+
+        const auto& proc = proc_it->second;
+
+        dso_info ret;
+        ret.comm = proc.comm;
+        ret.name = "-";
+
+        auto region = std::find_if(proc.maps.begin(), proc.maps.end(), [&](const auto& r) { return r.contains(ip); });
+
+        if (region == proc.maps.end())
+        {
+            // TODO: don't know what to do with it
+            ret.pathname = "<no region>";
+            ret.addr = ip;
+            return ret;
+        }
+
+        ret.pathname = region->pathname;
+        ret.addr = ip - region->start + region->offset;
+        return ret;
     }
 
 private:

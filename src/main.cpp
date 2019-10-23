@@ -38,8 +38,8 @@ void profile_for(output_stream& output, const running_processes_snapshot& proces
     {
         session.read_some([&](const auto& sample)
         {
-            auto p = processes.find(sample.pid);
-            output << std::dec << sample.pid << ' ' << p.comm << ' ' << p.find_dso(sample.ip) << '\n';
+            auto s = processes.find_symbol(sample.pid, sample.ip);
+            output << std::dec << sample.pid << ' ' << s.comm << ' ' << s << '\n';
         });
 
         output.stream().flush();
