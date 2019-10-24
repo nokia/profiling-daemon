@@ -116,6 +116,7 @@ void watchdog_mode(const boost::program_options::variables_map& options)
     watchdog wdg;
 
     const auto output = options["output"].as<std::string>();
+    const auto duration = options["duration"].as<std::size_t>();
 
     {
         output_stream f{output};
@@ -135,19 +136,21 @@ void watchdog_mode(const boost::program_options::variables_map& options)
             // file is flushed and closed
             output_stream f{output};
             f.message("woke up by ", t);
-            profile_for(f, proc, std::chrono::seconds(3));
+            profile_for(f, proc, std::chrono::seconds{duration});
         }
     }
 }
 
 void oneshot_mode(const boost::program_options::variables_map& options)
 {
-    running_processes_snapshot proc;
-    set_this_thread_into_realtime();
     const auto output = options["output"].as<std::string>();
+    const auto duration = options["duration"].as<std::size_t>();
+
+    set_this_thread_into_realtime();
+    running_processes_snapshot proc;
     output_stream f{output};
     f.message("oneshot profiling");
-    profile_for(f, proc, std::chrono::seconds(3));
+    profile_for(f, proc, std::chrono::seconds{duration});
 }
 
 } // namespace

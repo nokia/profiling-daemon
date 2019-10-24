@@ -39,6 +39,7 @@ auto parse_options(int argc, char **argv)
     po::options_description desc;
     desc.add_options()
         ("output", po::value<std::string>()->default_value("/rom/profile.txt"))
+        ("duration", po::value<std::size_t>()->default_value(5u))
         ("mode", po::value<mode_t>()->default_value(mode_t::watchdog));
 
     po::variables_map vm;
