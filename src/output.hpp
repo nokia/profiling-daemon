@@ -38,7 +38,7 @@ struct output_stream
     template<class... Args>
     void message(Args&&... args)
     {
-        message_impl(current_time{}, ": ", std::forward<Args>(args)..., '\n');
+        message_impl("# ", current_time{}, ": ", std::forward<Args>(args)..., '\n');
     }
 
     std::ostream& stream()
