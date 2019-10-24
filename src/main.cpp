@@ -39,10 +39,10 @@ void profile_for(output_stream& output, const running_processes_snapshot& proces
         {
             auto s = processes.find_symbol(sample.pid, sample.ip);
 
-            output << std::dec << sample.pid << ' '
-                   << s.comm << ' '
+            output << std::dec << sample.time << ';' << sample.pid << ';'
+                   << s.comm << ';'
                    << s.pathname <<
-                   " 0x" << std::hex << s.addr << ' '
+                   ";0x" << std::hex << s.addr << ';'
                    << s.name << '\n';
 
         });
