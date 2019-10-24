@@ -3,7 +3,7 @@
 namespace poor_perf
 {
 
-void stream_to(std::ostream& os)
+void stream_to(std::ostream&)
 {
 }
 
@@ -15,33 +15,30 @@ void stream_to(std::ostream& os, Arg&& arg, Args&&... args)
 }
 
 /**
- * Wrapper over fstream that can optionaly hold a reference to cout.
+ * Wrapper over fstream that can optionaly hold a reference to cout so you can pass "-" as a filename.
  */
 struct output_stream
 {
-    output_stream(const std::string& output)
+    output_stream(const std::string& path)
     {
-        if (output == "-")
+        if (path == "-")
             _output = &std::cout;
         else
         {
-            _fstream.open(output, std::fstream::out | std::fstream:: app | std::fstream::ate);
+            _fstream.open(path, std::fstream::out | std::fstream:: app | std::fstream::ate);
             if (!_fstream)
-                throw std::runtime_error{"could not open '" + output + "' for writing"};
+                throw std::runtime_error{"could not open '" + path + "' for writing"};
             _output = &_fstream;
         }
     }
 
     /**
-     * Prints message to both output stream and std::cerr.
+     * Prints message to both output stream and std::cout.
      */
     template<class... Args>
     void message(Args&&... args)
     {
-        stream_to(stream(), current_time{}, ": ", std::forward<Args>(args)..., '\n');
-
-        if (!streaming_to_stdout())
-            stream_to(std::cerr, current_time{}, ": ", std::forward<Args>(args)..., '\n');
+        message_impl(current_time{}, ": ", std::forward<Args>(args)..., '\n');
     }
 
     std::ostream& stream()
@@ -50,6 +47,15 @@ struct output_stream
     }
 
 private:
+    template<class... Args>
+    void message_impl(Args&&... args)
+    {
+        stream_to(stream(), std::forward<Args>(args)...);
+
+        if (!streaming_to_stdout())
+            stream_to(std::cout, std::forward<Args>(args)...);
+    }
+
     bool streaming_to_stdout() const
     {
         return _output == &std::cout;
