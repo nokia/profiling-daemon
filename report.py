@@ -32,11 +32,37 @@ def _read_symbol_name(dso, addr):
     return name
 
 
+def _group(rng, max_size):
+    """Split range into chunks no longer than max_size."""
+    for i in range(0, len(rng), max_size):
+            yield rng[i:i+max_size]
+
+
+def _read_symbol_names(dso, addrs):
+    for part in _group(list(addrs), 100):
+        out = subprocess.check_output(f'addr2line -fe {dso} {" ".join(part)}', shell=True)
+        for addr, name in zip(addrs, out.decode('utf-8').split('\n')[::2]):
+            yield addr, name
+
+
 def read_symbols(samples):
-    for s in samples:
+    ret = list(samples)
+
+    addrs = defaultdict(set)
+
+    for s in ret:
+        if s.sym == '-' and os.path.exists(s.dso):
+            addrs[s.dso].add(s.addr)
+
+    names = defaultdict(dict)
+
+    for dso, a in addrs.items():
+        names[dso] = dict(_read_symbol_names(dso, a))
+
+    for s in ret:
         c = copy(s)
         if c.sym == '-' and os.path.exists(c.dso):
-            c.sym = _read_symbol_name(c.dso, c.addr)
+            c.sym = names[c.dso][c.addr]
         yield c
 
 

@@ -27,10 +27,12 @@ void signal_handler(int signal)
     signal_status = signal;
 }
 
-void profile_for(output_stream& output, const running_processes_snapshot& processes, std::chrono::seconds secs)
+void profile_for(output_stream& output, std::size_t cpu, const running_processes_snapshot& processes, std::chrono::seconds secs)
 {
     event_loop loop{signal_status};
-    perf_session session{0};
+
+    output.message("profiling cpu: ", cpu);
+    perf_session session{cpu};
     loop.add_fd(session.fd());
 
     loop.run_for(secs, [&]
@@ -117,6 +119,7 @@ void watchdog_mode(const boost::program_options::variables_map& options)
 
     const auto output = options["output"].as<std::string>();
     const auto duration = options["duration"].as<std::size_t>();
+    const auto cpu = options["cpu"].as<std::size_t>();
 
     {
         output_stream f{output};
@@ -136,7 +139,7 @@ void watchdog_mode(const boost::program_options::variables_map& options)
             // file is flushed and closed
             output_stream f{output};
             f.message("woke up by ", t);
-            profile_for(f, proc, std::chrono::seconds{duration});
+            profile_for(f, cpu, proc, std::chrono::seconds{duration});
         }
     }
 }
@@ -145,12 +148,13 @@ void oneshot_mode(const boost::program_options::variables_map& options)
 {
     const auto output = options["output"].as<std::string>();
     const auto duration = options["duration"].as<std::size_t>();
+    const auto cpu = options["cpu"].as<std::size_t>();
 
     set_this_thread_into_realtime();
     running_processes_snapshot proc;
     output_stream f{output};
     f.message("oneshot profiling");
-    profile_for(f, proc, std::chrono::seconds{duration});
+    profile_for(f, cpu, proc, std::chrono::seconds{duration});
 }
 
 } // namespace
