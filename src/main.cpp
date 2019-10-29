@@ -41,7 +41,7 @@ void profile_for(output_stream& output, std::size_t cpu, const running_processes
         {
             auto s = processes.find_symbol(sample.pid, sample.ip);
 
-            output << std::dec << sample.time << ';' << sample.pid << ';'
+            output << std::dec << sample.time << ';' << sample.cpu << ';' << sample.pid << ';'
                    << s.comm << ';'
                    << s.pathname <<
                    ";0x" << std::hex << s.addr << ';'

@@ -89,10 +89,11 @@ private:
 
 struct sample_t
 {
-    constexpr static std::uint32_t type = PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME;
+    constexpr static std::uint32_t type = PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME | PERF_SAMPLE_CPU;
     std::uint64_t ip;
     std::uint32_t pid, tid;
     std::uint64_t time;
+    std::uint32_t cpu, res;
 };
 
 struct perf_fd
