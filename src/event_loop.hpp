@@ -21,20 +21,22 @@ struct event_loop
     {
         epoll_event ev;
         ev.events = EPOLLIN;
-        epoll_ctl(_fd, EPOLL_CTL_ADD, fd, &ev);
+        ev.data.fd = fd;
+        auto ret = epoll_ctl(_fd, EPOLL_CTL_ADD, fd, &ev);
+        if (ret)
+            throw std::runtime_error{"could not add descriptor to epoll wait list"};
     }
 
     template<class F>
     bool run_once(F&& f, std::chrono::milliseconds timeout = std::chrono::milliseconds{-1})
     {
-        epoll_event ev[1];
-        auto ret = epoll_wait(_fd, ev, 1, timeout.count());
-        if (ret == 1)
-        {
-            f();
-            return true;
-        }
-        return false;
+        epoll_event ev[5];
+        auto ret = epoll_wait(_fd, ev, 5, timeout.count());
+
+        for (int i = 0; i < ret; i++)
+            f(ev[i].data.fd);
+
+        return ret > 0;
     }
 
     template<class F>

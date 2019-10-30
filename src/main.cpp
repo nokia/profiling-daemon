@@ -35,7 +35,7 @@ void profile_for(output_stream& output, std::size_t cpu, const running_processes
     perf_session session{cpu};
     loop.add_fd(session.fd());
 
-    loop.run_for(secs, [&]
+    loop.run_for(secs, [&](auto fd)
     {
         session.read_some([&](const auto& sample)
         {
@@ -87,7 +87,7 @@ auto wait_for_trigger(watchdog& wdg)
     auto trigger = trigger::none;
     while (trigger == trigger::none && !signal_status)
     {
-        auto read_control_fifo = [&]
+        auto read_control_fifo = [&](int)
         {
             std::cerr << "woke up by control fifo\n";
             std::cerr << control_fifo.read();
