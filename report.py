@@ -27,13 +27,6 @@ def parse_file(path):
                 yield Sample(line)
 
 
-@lru_cache(1024)
-def _read_symbol_name(dso, addr):
-    out = subprocess.check_output(f'addr2line -fe {dso} {addr}', shell=True)
-    name = out.decode('utf-8').split('\n')[0]
-    return name
-
-
 def _group(rng, max_size):
     """Split range into chunks no longer than max_size."""
     for i in range(0, len(rng), max_size):
