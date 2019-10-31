@@ -1,7 +1,13 @@
-`poor-perf` is a mix of linux `perf` and a watchdog. It comes with two modes: watchdog and oneshot.
+`poor-perf` is a mix of linux `perf` and a watchdog. It comes with two modes: _watchdog_ and _oneshot_.
 
+# Common options
 
-# One shot profile
+`--mode` - either _watchdog_ or _oneshot_
+`--cpu` - which cpu the watchdog should run and profile be taken from; one single cpu is valid at the moment
+`--duration` - specify in seconds for how long system should be profiled
+`--output` - filename to store the report, you can use `-` if you it to be printed on _stdout_.
+
+# _oneshot_ profile
 
 ```
 podusows@podusows-ThinkPad-T480:~/Development/poor-perf$ sudo ./build/poor-perf --mode oneshot --output -
