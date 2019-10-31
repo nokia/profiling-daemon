@@ -7,6 +7,8 @@ from typing import NamedTuple
 from copy import copy
 import subprocess
 from functools import lru_cache
+from itertools import groupby
+from operator import attrgetter
 
 
 class Sample:
@@ -38,32 +40,50 @@ def _group(rng, max_size):
             yield rng[i:i+max_size]
 
 
-def _read_symbol_names(dso, addrs):
-    for part in _group(list(addrs), 100):
-        out = subprocess.check_output(f'addr2line -fe {dso} {" ".join(part)}', shell=True)
-        for addr, name in zip(addrs, out.decode('utf-8').split('\n')[::2]):
-            yield addr, name
+def test_group():
+    assert [[1], [2], [3]] == list(_group([1, 2, 3], 1))
+    assert [[1, 2], [3]] == list(_group([1, 2, 3], 2))
+    assert [[1, 2], [3, 4]] == list(_group([1, 2, 3, 4], 2))
+    assert [[1, 2, 3], [4]] == list(_group([1, 2, 3, 4], 3))
+
+
+def _build_symbol_mapping(samples):
+    '''Builds a nested of dso -> addr -> symbol.
+
+    We are doing it in a bulk because invoking addr2line for just
+    one address is very slow.'''
+
+    dso = attrgetter('dso')
+
+    def _read_symbol_names(dso, addrs):
+        for part in _group(list(addrs), 200):
+            out = subprocess.check_output(f'addr2line -Cfe {dso} {" ".join(part)}', shell=True)
+            for addr, name in zip(part, out.decode('utf-8').split('\n')[::2]):
+                yield addr, name
+
+    def _read_symbol_mapping_per_dso():
+        '''This should return something like: DSO, ((ADDR, NAME), (ADDR2, NAME2))'''
+        for k, g in groupby(sorted(samples, key=dso), dso):
+            if os.path.exists(k):
+                addrs = [s.addr for s in g]
+                yield k, _read_symbol_names(k, addrs)
+
+    return {dso: dict(syms) for dso, syms in _read_symbol_mapping_per_dso()}
 
 
 def read_symbols(samples):
     ret = list(samples)
 
-    addrs = defaultdict(set)
+    mapping = _build_symbol_mapping(ret)
 
     for s in ret:
-        if s.sym == '-' and os.path.exists(s.dso):
-            addrs[s.dso].add(s.addr)
+        try:
+            s.sym = mapping[s.dso][s.addr]
+        except KeyError:
+            # that is ok, some symbols come from the kernel instead of dso
+            pass
 
-    names = defaultdict(dict)
-
-    for dso, a in addrs.items():
-        names[dso] = dict(_read_symbol_names(dso, a))
-
-    for s in ret:
-        c = copy(s)
-        if c.sym == '-' and os.path.exists(c.dso):
-            c.sym = names[c.dso][c.addr]
-        yield c
+    return ret
 
 
 def show_top(path):
@@ -76,14 +96,14 @@ def show_top(path):
             self.sample = sample
 
         def __eq__(self, other):
-            return self.sample.pid, self.sample.addr == other.sample.pid, other.sample.addr
+            return self._tuple == other._tuple
 
         def __hash__(self):
             return hash(self._tuple)
 
         @property
         def _tuple(self):
-            return self.sample.pid, self.sample.addr
+            return self.sample.pid, self.sample.sym
 
     samples = parse_file(path)
     samples = read_symbols(samples)
@@ -95,13 +115,14 @@ def show_top(path):
 
 def show(path):
     samples = parse_file(path)
-    for s in read_symbols(samples):
+    samples = read_symbols(samples)
+    for s in samples:
         print(f'{s.pid} {s.comm} {s.dso} {s.addr} {s.sym}')
 
 
 def _main():
     for path in sys.argv[1:]:
-        show(path)
+        show_top(path)
 
 
 if __name__ == "__main__":
