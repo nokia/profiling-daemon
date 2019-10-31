@@ -114,16 +114,16 @@ auto wait_for_trigger(watchdog& wdg)
 
 void watchdog_mode(const boost::program_options::variables_map& options)
 {
-    running_processes_snapshot proc;
-    watchdog wdg;
-
     const auto output = options["output"].as<std::string>();
     const auto duration = options["duration"].as<std::size_t>();
     const auto cpu = options["cpu"].as<std::size_t>();
 
+    running_processes_snapshot proc;
+    watchdog wdg{cpu};
+
     {
         output_stream f{output};
-        f.message("watchdog mode started");
+        f.message("watchdog mode started on cpu ", cpu);
     }
 
     // childs inherit sched so set it after watchdog is started

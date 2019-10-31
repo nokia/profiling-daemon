@@ -40,17 +40,21 @@ void set_this_thread_affinity(std::size_t cpu)
     CPU_SET(cpu, &cpuset);
     int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     if (ret)
-        throw std::runtime_error("failed to set thread affinity");
+    {
+        std::stringstream ss;
+        ss << "failed to set thread affinity to cpu " << cpu;
+        throw std::runtime_error(ss.str());
+    }
 }
 
 struct watchdog
 {
-    watchdog()
+    watchdog(std::size_t cpu)
     {
-        auto normal_thread = [&]
+        auto normal_thread = [this, cpu]
         {
             set_this_thread_name("poor-watchdog");
-            set_this_thread_affinity(0);
+            set_this_thread_affinity(cpu);
 
             while (_running.load(std::memory_order_relaxed))
             {
