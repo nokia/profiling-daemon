@@ -9,22 +9,25 @@ import subprocess
 from functools import lru_cache
 from itertools import groupby
 from operator import attrgetter
+import fileinput
 
 
 class Sample:
     def __init__(self, line):
-        tokens = line.rstrip().split(';')
-        self.time, self.pid, self.comm, self.dso, self.addr, self.sym = tokens
+        try:
+            tokens = line.rstrip().split(';')
+            self.time, self.cpu, self.pid, self.comm, self.dso, self.addr, self.sym = tokens
+        except ValueError:
+            sys.exit(f'invalid format: "{line.rstrip()}"')
 
     def __str__(self):
         return f'{self.time} {self.pid} {self.comm} {self.dso} {self.addr} {self.sym}'
 
 
-def parse_file(path):
-    with open(path) as f:
-        for line in f:
-            if line and line[0] != '#':
-                yield Sample(line)
+def parse_file(f):
+    for line in f:
+        if line and line[0] != '#':
+            yield Sample(line)
 
 
 def _group(rng, max_size):
@@ -79,10 +82,7 @@ def read_symbols(samples):
     return ret
 
 
-def show_top(path):
-    # 25733629246420;0;<swapper>;-;0xffffffffbe3dd34a;-
-    # 25733636247831;0;<swapper>;-;0xffffffffbe3d916d;-
-    # 25733636525490;2375;pulseaudio;<kernelmain>;0xffffffffbdcd3888;update_blocked_averages
+def show_top(f):
 
     class TopSample:
         def __init__(self, sample=None):
@@ -98,7 +98,7 @@ def show_top(path):
         def _tuple(self):
             return self.sample.pid, self.sample.sym
 
-    samples = parse_file(path)
+    samples = parse_file(f)
     samples = read_symbols(samples)
 
     c = Counter([TopSample(s) for s in samples])
@@ -106,16 +106,22 @@ def show_top(path):
         print(f'{n} {s.sample.comm} {s.sample.dso} {s.sample.addr} {s.sample.sym}')
 
 
-def show(path):
-    samples = parse_file(path)
+def show(f):
+    samples = parse_file(f)
     samples = read_symbols(samples)
     for s in samples:
         print(f'{s.pid} {s.comm} {s.dso} {s.addr} {s.sym}')
 
 
 def _main():
-    for path in sys.argv[1:]:
-        show_top(path)
+    commands = {'top': show_top, 'show': show}
+
+    try:
+        command = commands[sys.argv[1]]
+    except KeyError:
+        sys.exit(f'unkonwn or no command was given, valid ones are: {", ".join(commands.keys())}')
+
+    command(fileinput.input(files=sys.argv[2:]))
 
 
 if __name__ == "__main__":
