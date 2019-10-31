@@ -2,13 +2,10 @@
 
 # Common options
 
-`--mode` - either _watchdog_ or _oneshot_
-
-`--cpu` - which cpu the watchdog should run and profile be taken from; one single cpu is valid at the moment
-
-`--duration` - specify in seconds for how long system should be profiled
-
-`--output` - filename to store the report, you can use `-` if you it to be printed on _stdout_.
+- `--mode` - either _watchdog_ or _oneshot_
+- `--cpu` - which cpu the watchdog should run and profile be taken from; one single cpu is valid at the moment
+- `--duration` - specify in seconds for how long system should be profiled
+- `--output` - filename to store the report, you can use `-` if you it to be printed on _stdout_.
 
 # _oneshot_ profile
 
