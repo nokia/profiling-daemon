@@ -1,5 +1,6 @@
 `poor-perf` is a mix of linux `perf` and a watchdog. It comes with two modes: _watchdog_ and _oneshot_.
 
+
 # Common options
 
 `--mode` - either _watchdog_ or _oneshot_
@@ -10,7 +11,11 @@
 
 `--output` - filename to store the report, you can use `-` if you it to be printed on _stdout_.
 
+
 # _watchdog_ mode
+
+In this mode, an additional thread is started with `SCHED_OTHER` scheduler class and its one and only function is to switch global atomic flag to `true`, sleep for 1 second and then start over again. The main thread (which runs on `SCHED_FIFO`) monitors that flag and runs profiling for a brief moment when the flag is not switched in time because of some sort of cpu core starvation. After profiling is done, the `watchdog` keeps running so multiple sessions can appear in the output.
+
 
 # _oneshot_ mode
 
@@ -33,6 +38,7 @@ took map snapshot of 298 running processes
 12016204702507;0;2271;Xorg;/usr/lib/x86_64-linux-gnu/libEGL_mesa.so.0.0.0;0x17d50;-
 12016204762974;0;2271;Xorg;[i915];0xffffffffc146ce05;fw_domains_get_with_fallback
 ```
+
 
 # `report.py`
 
