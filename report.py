@@ -34,12 +34,10 @@ def parse_file(f):
 
         if line[0] == '$':
             fmt = line[1:].strip().split(';')
-            continue
-
-        if fmt is None:
+        elif fmt is None:
             raise RuntimeError('no format line found in profile file')
-
-        yield Sample(line, fmt=fmt)
+        else:
+            yield Sample(line, fmt=fmt)
 
 
 def _group(rng, max_size):
