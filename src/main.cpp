@@ -32,6 +32,8 @@ void profile_for(output_stream& output, std::size_t cpu, const running_processes
     event_loop loop{signal_status};
 
     output.message("profiling cpu: ", cpu);
+    output << "$ time;cpu;pid;comm;pathname;addr;name\n";
+
     perf_session session{cpu};
     loop.add_fd(session.fd());
 
@@ -46,7 +48,6 @@ void profile_for(output_stream& output, std::size_t cpu, const running_processes
                    << s.pathname <<
                    ";0x" << std::hex << s.addr << ';'
                    << s.name << '\n';
-
         });
 
         output.stream().flush();
