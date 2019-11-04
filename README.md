@@ -51,7 +51,9 @@ Samples come from two places, kernel and user space:
 10210792696146;0;2844;pulseaudio;/usr/lib/pulse-12.2/modules/libprotocol-native.so;0x9bb0;-
 ```
 
-If you think that first one is from the kernel because it contains something like `kernelmain` then you are right. This column is called `pathname` and suppose to represent the image containing the instruction that was being executed when perf event fired (some places calls this a `dso`, regardless if it is a `.so` library or executable). On user space, this information can be obtained from `/proc/$PID/maps` file but kernel looks a bit different.
+If you think that first one is from the kernel because it contains something like `kernelmain` then you are right. It means that the code is located in the main kernel (and not the module).
+
+This column is called `pathname` and suppose to represent the image containing the instruction that was being executed when perf event fired (some places calls this a `dso`, regardless if it is a `.so` library or executable). On user space, this information can be obtained from `/proc/$PID/maps` file but kernel looks a bit different.
 
 Kernel has modules, like `[i915]` which is a driver for my _Intel 915_ graphic card which is unsurprisingly used by the _X server_. This information comes from `/proc/kallsyms` which should also have a symbol name, this is why you see it even without the postprocessing (user mode has a placeholder: `-`).
 
