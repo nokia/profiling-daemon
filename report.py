@@ -6,7 +6,6 @@ from collections import defaultdict, Counter
 from typing import NamedTuple
 from copy import copy
 import subprocess
-from functools import lru_cache
 from itertools import groupby
 from operator import attrgetter
 import fileinput
