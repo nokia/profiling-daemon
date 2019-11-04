@@ -26,6 +26,8 @@ This executes one profiling session immidiately.
 
 # Output format
 
+Output is a text file. Most of the lines represent a perf event ([https://easyperf.net/blog/2018/08/26/Basics-of-profiling-with-perf](this) is one of the best places where you can read what that means) but there are also special ones. When the line starts with `#`, it is a message. '$' is used for setting up the columns format.
+
 ```
 # 2019-11-04 11:09:46: oneshot profiling
 # 2019-11-04 11:09:46: profiling cpu: 0
@@ -40,6 +42,18 @@ $ time;cpu;pid;comm;pathname;addr;name
 10210792566967;0;2844;pulseaudio;<kernelmain>;0xffffffff8aae40f4;add_wait_queue
 10210792696146;0;2844;pulseaudio;/usr/lib/pulse-12.2/modules/libprotocol-native.so;0x9bb0;-
 ```
+
+Samples come from two places, kernel and user space:
+
+```
+10210792566967;0;2844;pulseaudio;<kernelmain>;0xffffffff8aae40f4;add_wait_queue
+10211516492065;0;2623;Xorg;[i915];0xffffffffc0ffdc85;intel_prepare_plane_fb
+10210792696146;0;2844;pulseaudio;/usr/lib/pulse-12.2/modules/libprotocol-native.so;0x9bb0;-
+```
+
+If you think that first one is from the kernel because it contains something like `kernelmain` then you are right. This column is called `pathname` and suppose to represent the image containing the instruction that was being executed when perf event fired (some places calls this a `dso`, regardless if it is a `.so` library or executable). On user space, this information can be obtained from `/proc/$PID/maps` file but kernel looks a bit different.
+
+Kernel has modules, like `[i915]` which is a driver for my _Intel 915_ graphic card which is unsurprisingly used by the _X server_. This information comes from `/proc/kallsyms` which should also have a symbol name, this is why you see it even without the postprocessing (user mode has a placeholder: `-`).
 
 
 # `report.py`
