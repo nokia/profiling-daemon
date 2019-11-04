@@ -68,6 +68,11 @@ def _build_symbol_mapping(samples):
 
 
 def read_symbols(samples):
+    '''Updates `sym` attribute.
+
+    Returns new iterable of `Sample` but with `sym` changed
+    to the symbol name got from `addr2line`.'''
+
     ret = list(samples)
 
     mapping = _build_symbol_mapping(ret)
@@ -100,6 +105,9 @@ def show_top(f):
 
     samples = parse_file(f)
     samples = read_symbols(samples)
+
+    duration = int(samples[-1].time) - int(samples[0].time)
+    print(f'duration: {duration/1000000000} secs')
 
     c = Counter([TopSample(s) for s in samples])
     for s, n in c.most_common(50):
