@@ -87,7 +87,7 @@ def read_symbols(samples):
     return ret
 
 
-def show_top(f):
+def _top(f):
 
     class TopSample:
         def __init__(self, sample=None):
@@ -114,7 +114,7 @@ def show_top(f):
         print(f'{n} {s.sample.comm} {s.sample.dso} {s.sample.addr} {s.sample.sym}')
 
 
-def show(f):
+def _show(f):
     samples = parse_file(f)
     samples = read_symbols(samples)
     for s in samples:
@@ -122,7 +122,7 @@ def show(f):
 
 
 def _main():
-    commands = {'top': show_top, 'show': show}
+    commands = {'top': _top, 'show': _show}
 
     try:
         command = commands[sys.argv[1]]
