@@ -12,21 +12,34 @@ import fileinput
 
 
 class Sample:
-    def __init__(self, line):
-        try:
-            tokens = line.rstrip().split(';')
-            self.time, self.cpu, self.pid, self.comm, self.dso, self.addr, self.sym = tokens
-        except ValueError:
-            sys.exit(f'invalid format: "{line.rstrip()}"')
+    def __init__(self, line, *, fmt):
+        tokens = line.rstrip().split(';')
+        self._data = dict(zip(fmt, tokens))
 
     def __str__(self):
-        return f'{self.time} {self.pid} {self.comm} {self.dso} {self.addr} {self.sym}'
+        return f'{self.time} {self.pid} {self.comm} {self.pathname} {self.addr} {self.name}'
+
+    def __getattr__(self, name):
+        try:
+            return self._data[name]
+        except KeyError:
+            raise KeyError(f'there is no \'{name}\' in: {",".join(self._data.keys())}')
 
 
 def parse_file(f):
+    fmt = None
     for line in f:
-        if line and line[0] != '#':
-            yield Sample(line)
+        if not line or line[0] == '#':
+            continue
+
+        if line[0] == '$':
+            fmt = line[1:].strip().split(';')
+            continue
+
+        if fmt is None:
+            raise RuntimeError('no format line found in profile file')
+
+        yield Sample(line, fmt=fmt)
 
 
 def _group(rng, max_size):
@@ -48,7 +61,7 @@ def _build_symbol_mapping(samples):
     We are doing it in a bulk because invoking addr2line for just
     one address is very slow.'''
 
-    dso = attrgetter('dso')
+    dso = attrgetter('pathname')
 
     def _read_symbol_names(dso, addrs):
         for part in _group(list(addrs), 200):
@@ -100,7 +113,7 @@ def _top(f):
 
         @property
         def _tuple(self):
-            return self.sample.pid, self.sample.sym
+            return self.sample.pid, self.sample.name
 
     samples = parse_file(f)
     samples = read_symbols(samples)
@@ -110,14 +123,14 @@ def _top(f):
 
     c = Counter([TopSample(s) for s in samples])
     for s, n in c.most_common(50):
-        print(f'{n} {s.sample.comm} {s.sample.dso} {s.sample.addr} {s.sample.sym}')
+        print(f'{n} {s.sample.comm} {s.sample.pathname} {s.sample.addr} {s.sample.name}')
 
 
 def _show(f):
     samples = parse_file(f)
     samples = read_symbols(samples)
     for s in samples:
-        print(f'{s.pid} {s.comm} {s.dso} {s.addr} {s.sym}')
+        print(f'{s.pid} {s.comm} {s.pathname} {s.addr} {s.name}')
 
 
 def _main():
