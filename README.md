@@ -9,38 +9,42 @@
 
 `--duration` - specify in seconds for how long system should be profiled
 
-`--output` - filename to store the report, you can use `-` if you it to be printed on _stdout_.
+`--output` - filename to store the report; you can use `-` if you it to be printed on _stdout_.
 
 
 # _watchdog_ mode
 
 In this mode, an additional thread is started with `SCHED_OTHER` scheduler class and its one and only function is to switch global atomic flag to `true`, sleep for 1 second and then start over again. The main thread (which runs on `SCHED_FIFO`) monitors that flag and runs profiling for a brief moment when the flag is not switched in time because of some sort of cpu core starvation. After profiling is done, the `watchdog` keeps running so multiple sessions can appear in the output.
 
+This mode was the key reason why we did implement this tool.
+
 
 # _oneshot_ mode
 
+This executes one profiling session immidiately.
+
+
+# Output format
+
 ```
-podusows@podusows-ThinkPad-T480:~/Development/poor-perf$ sudo ./build/poor-perf --mode oneshot --output -
-read 167161 kernel symbols
-took map snapshot of 298 running processes
-# 2019-10-31 10:40:12: oneshot profiling
-# 2019-10-31 10:40:12: profiling cpu: 0
-12016190261582;0;2271;Xorg;/usr/lib/x86_64-linux-gnu/libglapi.so.0.0.0;0x104e0;-
-12016191933767;0;10491;chrome;/opt/google/chrome/chrome;0x43bfa61;-
-12016193986998;0;0;<swapper>;-;0xffffffff98c3b62b;-
-12016198312276;0;0;<swapper>;-;0xffffffff98c3b62b;-
-12016203340631;0;0;<swapper>;-;0xffffffff98322ece;-
-12016203418567;0;10491;chrome;/opt/google/chrome/chrome;0x435e661;-
-12016204371818;0;2271;Xorg;<kernelmain>;0xffffffff98c3bc5b;_raw_spin_lock_irq
-12016204441737;0;2271;Xorg;<kernelmain>;0xffffffff982d396b;update_blocked_averages
-12016204575503;0;2271;Xorg;<kernelmain>;0xffffffff982c972c;check_preempt_curr
-12016204642200;0;0;<swapper>;-;0xffffffff98c3b62b;-
-12016204702507;0;2271;Xorg;/usr/lib/x86_64-linux-gnu/libEGL_mesa.so.0.0.0;0x17d50;-
-12016204762974;0;2271;Xorg;[i915];0xffffffffc146ce05;fw_domains_get_with_fallback
+# 2019-11-04 11:09:46: oneshot profiling
+# 2019-11-04 11:09:46: profiling cpu: 0
+$ time;cpu;pid;comm;pathname;addr;name
+10210785447776;0;0;<swapper>;-;0xffffffff8aa7504a;-
+10210788186300;0;3607;chrome;<kernelmain>;0xffffffff8b420a21;timerqueue_add
+10210788201844;0;3607;chrome;<kernelmain>;0xffffffff8b420a21;timerqueue_add
+10210792194558;0;0;<swapper>;-;0xffffffff8aad38d9;-
+10210792203914;0;0;<swapper>;-;0xffffffff8aad395d;-
+10210792212681;0;0;<swapper>;-;0xffffffff8aad395d;-
+10210792509512;0;2844;pulseaudio;<kernelmain>;0xffffffff8acd5732;__fget
+10210792566967;0;2844;pulseaudio;<kernelmain>;0xffffffff8aae40f4;add_wait_queue
+10210792696146;0;2844;pulseaudio;/usr/lib/pulse-12.2/modules/libprotocol-native.so;0x9bb0;-
 ```
 
 
 # `report.py`
+
+It is a python script that can be used to postprocess the output.
 
 ```
 podusows@podusows-ThinkPad-T480:~/Development/poor-perf$ cmake --build build && sudo ./build/poor-perf --mode oneshot --output - | ./report.py top
