@@ -59,7 +59,7 @@ struct watchdog
             while (_running.load(std::memory_order_relaxed))
             {
                 _flag.store(true, std::memory_order_relaxed);
-                std::this_thread::sleep_for(std::chrono::seconds{1});
+                std::this_thread::sleep_for(_interval);
             }
         };
 
@@ -73,6 +73,11 @@ struct watchdog
         _thread.join();
     }
 
+    auto interval() const
+    {
+        return _interval;
+    }
+
     bool ping()
     {
         // false will mean that normal thread was unable to do the work
@@ -83,4 +88,5 @@ private:
     std::atomic<bool> _running{true};
     std::atomic<bool> _flag{true};
     std::thread _thread;
+    std::chrono::seconds _interval{1};
 };

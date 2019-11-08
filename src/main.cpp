@@ -107,7 +107,7 @@ auto wait_for_trigger(watchdog& wdg)
             }
         };
 
-        loop.run_for(std::chrono::seconds{2}, read_control_fifo, timeout);
+        loop.run_for(wdg.interval() * 2, read_control_fifo, timeout);
     }
 
     return trigger;
