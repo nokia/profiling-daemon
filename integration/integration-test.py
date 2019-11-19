@@ -10,10 +10,21 @@ class Qemu:
         self._hdb = hdb
 
     async def readline(self):
-        return await self._qemu.stdout.readline()
+        out = await self._qemu.stdout.readline()
+        self._print(out)
+        return out
+
+    async def readuntil(self, separator):
+        out = await self._qemu.stdout.readuntil(separator)
+        self._print(out)
+        return out
 
     async def write(self, data):
         self._qemu.stdin.write(data)
+
+    def _print(self, b):
+        for line in b.decode('utf-8').splitlines():
+            print(f'qemu> {line}')
 
     async def __aenter__(self):
         await self._start()
@@ -80,6 +91,13 @@ async def prepare_profd_image(profd_binary):
     return profd_image
 
 
+async def mount_profd_image(qemu):
+    await qemu.readuntil(b'#')
+    await qemu.write(b'mkdir /profd ; mount /dev/sdb /profd ; chmod +x /profd/poor-perf ; echo ok\r')
+    await qemu._qemu.stdout.readuntil(b'ok')
+    print('mounted profd image')
+
+
 async def main():
     profd_image = await prepare_profd_image('./build/poor-perf')
     print(f'profd packed in {profd_image}')
@@ -88,7 +106,11 @@ async def main():
     print(f'got {qemu_image}')
 
     async with Qemu(qemu_image, profd_image) as qemu:
+        await qemu.readuntil(b'#')
         await qemu.write(b'echo hello world\r')
+        await qemu.readuntil(b'world')
+
+        await mount_profd_image(qemu)
         while True:
             out = await qemu.readline()
             if out:
