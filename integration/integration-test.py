@@ -5,8 +5,8 @@ import time
 
 
 class Qemu:
-    def __init__(self, image, hdb):
-        self._image = image
+    def __init__(self, hda, hdb):
+        self._hda = hda
         self._hdb = hdb
 
     async def readline(self):
@@ -26,7 +26,7 @@ class Qemu:
 
     async def _start(self):
         self._qemu = await asyncio.create_subprocess_shell(
-            f'qemu-system-x86_64 -serial stdio -hda {self._image} -hdb {self._hdb}',
+            f'qemu-system-x86_64 -serial stdio -hda {self._hda} -hdb {self._hdb}',
             stdout=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
 
         await self._wait_for_login_screen()
