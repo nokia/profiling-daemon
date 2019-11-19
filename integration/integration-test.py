@@ -47,7 +47,18 @@ class Qemu:
         await asyncio.sleep(1)
 
 
-def download_qemu_image():
+class ShellError(Exception):
+    pass
+
+
+async def _shell(cmd):
+    shell = await asyncio.create_subprocess_shell(cmd)
+    return_code = await shell.wait()
+    if return_code != 0:
+        raise ShellError(cmd)
+
+
+async def download_qemu_image():
     qemu_image='debian_squeeze_amd64_standard.qcow2'
     qemu_image_url=f'https://people.debian.org/~aurel32/qemu/amd64/{qemu_image}'
 
@@ -59,8 +70,19 @@ def download_qemu_image():
     return qemu_image
 
 
+async def prepare_profd_image(profd_binary):
+    profd_image = 'profd.ext4'
+    await _shell(f'dd if=/dev/zero of={profd_image} bs=1M count=50')
+    await _shell(f'mkfs.ext3 {profd_image}')
+    await _shell(f'e2cp {profd_binary} {profd_image}:/')
+    return profd_image
+
+
 async def main():
-    qemu_image = download_qemu_image()
+    profd_image = await prepare_profd_image('./build/poor-perf')
+    print(f'profd packed in {profd_image}')
+
+    qemu_image = await download_qemu_image()
     print(f'got {qemu_image}')
 
     async with Qemu(qemu_image) as qemu:
