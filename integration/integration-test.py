@@ -9,16 +9,18 @@ class Qemu:
         self._image = image
 
     async def readline(self):
-        return await qemu.stdout.readline()
+        return await self._qemu.stdout.readline()
 
     async def write(self, data):
         self._qemu.stdin.write(data)
 
     async def __aenter__(self):
         await self._start()
+        return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self._qemu.terminate()
+        print('terminating qemu')
+        self._qemu.terminate()
         await self._qemu.wait()
 
     async def _start(self):
@@ -26,19 +28,11 @@ class Qemu:
             f'qemu-system-x86_64 -serial stdio {self._image}', stdout=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
 
         await self._wait_for_login_screen()
+        await asyncio.sleep(0.3)
         print('got login screen')
-
-        time.sleep(0.3)
 
         await self._login()
         print('logged in')
-
-        self._qemu.stdin.write(b'echo hello world\r')
-
-        while True:
-            out = await self._qemu.stdout.readline()
-            if out:
-                print(out)
 
     async def _wait_for_login_screen(self):
         while True:
@@ -48,12 +42,12 @@ class Qemu:
 
     async def _login(self):
         self._qemu.stdin.write(b'root\r')
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
         self._qemu.stdin.write(b'root\r')
-        time.sleep(1)
+        await asyncio.sleep(1)
 
 
-async def main():
+def download_qemu_image():
     qemu_image='debian_squeeze_amd64_standard.qcow2'
     qemu_image_url=f'https://people.debian.org/~aurel32/qemu/amd64/{qemu_image}'
 
@@ -62,10 +56,15 @@ async def main():
         wget = await asyncio.create_subprocess_shell(f'wget {qemu_image_url}')
         await wget.wait()
 
+    return qemu_image
+
+
+async def main():
+    qemu_image = download_qemu_image()
     print(f'got {qemu_image}')
 
     async with Qemu(qemu_image) as qemu:
-        qemu.write(b'echo hello world\r')
+        await qemu.write(b'echo hello world\r')
         while True:
             out = await qemu.readline()
             if out:
