@@ -158,7 +158,7 @@ void oneshot_mode(const options_t& options)
 
 int main(int argc, char **argv)
 {
-    const auto options = poor_perf::parse_options(argc, argv);
+    const auto options = poor_perf::options_t{argc, argv};
 
     ::set_this_thread_name("poor-perf");
     ::set_this_thread_affinity(1);
@@ -169,5 +169,7 @@ int main(int argc, char **argv)
         poor_perf::watchdog_mode(options);
     else if (options.mode == poor_perf::mode_t::oneshot)
         poor_perf::oneshot_mode(options);
+    else
+        options.show_help();
 }
 
