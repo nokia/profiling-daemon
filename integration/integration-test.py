@@ -37,11 +37,15 @@ class Qemu:
     async def __aexit__(self, exc_type, exc, tb):
         print('terminating qemu')
         self._qemu.terminate()
-        await self._qemu.wait()
+        #self._qemu.kill()
+        await self._qemu.communicate()
+        #await self._qemu.wait()
 
     async def _start(self):
-        self._qemu = await asyncio.create_subprocess_shell(
-            f'qemu-system-x86_64 -serial stdio -hda {self._hda} -hdb {self._hdb}',
+        args = ['-serial', 'stdio', '-hda', self._hda, '-hdb', self._hdb]
+
+        self._qemu = await asyncio.create_subprocess_exec(
+            'qemu-system-x86_64', *args,
             stdout=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
 
         await self.readuntil(b'login: ')
@@ -52,7 +56,8 @@ class Qemu:
 
     async def _login(self):
         self.write(b'root\r')
-        await asyncio.sleep(0.3)
+        #await asyncio.sleep(0.3)
+        await self.readuntil(b'Password: ')
         self.write(b'root\r')
         await self.wait_for_prompt()
 
