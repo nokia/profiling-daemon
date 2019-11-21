@@ -19,7 +19,11 @@ class Qemu:
         self._print(out)
         return out
 
-    async def write(self, data):
+    async def wait_for_prompt(self):
+        await self.readuntil(b'root@debian-amd64:~#')
+
+    def write(self, data):
+        #print(f'qemu< {data}')
         self._qemu.stdin.write(data)
 
     def _print(self, b):
@@ -40,24 +44,17 @@ class Qemu:
             f'qemu-system-x86_64 -serial stdio -hda {self._hda} -hdb {self._hdb}',
             stdout=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
 
-        await self._wait_for_login_screen()
-        await asyncio.sleep(0.3)
+        await self.readuntil(b'login: ')
         print('got login screen')
 
         await self._login()
         print('logged in')
 
-    async def _wait_for_login_screen(self):
-        while True:
-            out = await self._qemu.stdout.readline()
-            if out.decode('utf-8').startswith('Debian GNU/Linux'):
-                break
-
     async def _login(self):
-        self._qemu.stdin.write(b'root\r')
+        self.write(b'root\r')
         await asyncio.sleep(0.3)
-        self._qemu.stdin.write(b'root\r')
-        await asyncio.sleep(1)
+        self.write(b'root\r')
+        await self.wait_for_prompt()
 
 
 class ShellError(Exception):
@@ -72,15 +69,18 @@ async def _shell(cmd):
 
 
 async def download_qemu_image():
-    qemu_image='debian_squeeze_amd64_standard.qcow2'
-    qemu_image_url=f'https://people.debian.org/~aurel32/qemu/amd64/{qemu_image}'
+    debian_image='debian_squeeze_amd64_standard.qcow2'
+    qemu_image_url=f'https://people.debian.org/~aurel32/qemu/amd64/{debian_image}'
 
-    if not os.path.exists(qemu_image):
-        print(f'getting {qemu_image}')
+    if not os.path.exists(debian_image):
+        print(f'getting {debian_image}')
         wget = await asyncio.create_subprocess_shell(f'wget {qemu_image_url}')
         await wget.wait()
 
-    return qemu_image
+    fresh_image = 'testing.qcow2'
+    await _shell(f'cp {debian_image} {fresh_image}')
+
+    return fresh_image
 
 
 async def prepare_profd_image(profd_binary):
@@ -92,9 +92,8 @@ async def prepare_profd_image(profd_binary):
 
 
 async def mount_profd_image(qemu):
-    await qemu.readuntil(b'#')
-    await qemu.write(b'mkdir /profd ; mount /dev/sdb /profd ; chmod +x /profd/poor-perf ; echo ok\r')
-    await qemu._qemu.stdout.readuntil(b'ok')
+    qemu.write(b'mkdir /profd ; mount /dev/sdb /profd ; chmod +x /profd/poor-perf ; echo ok\r')
+    await qemu.wait_for_prompt()
     print('mounted profd image')
 
 
@@ -106,15 +105,14 @@ async def main():
     print(f'got {qemu_image}')
 
     async with Qemu(qemu_image, profd_image) as qemu:
-        await qemu.readuntil(b'#')
-        await qemu.write(b'echo hello world\r')
-        await qemu.readuntil(b'world')
+        qemu.write(b'echo hello world\r')
+        await qemu.wait_for_prompt()
 
         await mount_profd_image(qemu)
-        while True:
-            out = await qemu.readline()
-            if out:
-                print(out)
+
+        print('running profd')
+        qemu.write(b'/profd/poor-perf --mode oneshot --duration 10 --output /profd/profile.txt\r')
+        await qemu.wait_for_prompt()
 
 
 if __name__ == '__main__':
