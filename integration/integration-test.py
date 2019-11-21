@@ -23,7 +23,6 @@ class Qemu:
         await self.readuntil(b'root@debian-amd64:~#')
 
     def write(self, data):
-        #print(f'qemu< {data}')
         self._qemu.stdin.write(data)
 
     def _print(self, b):
@@ -37,29 +36,21 @@ class Qemu:
     async def __aexit__(self, exc_type, exc, tb):
         print('terminating qemu')
         self._qemu.terminate()
-        #self._qemu.kill()
         await self._qemu.communicate()
-        #await self._qemu.wait()
 
     async def _start(self):
-        args = ['-serial', 'stdio', '-hda', self._hda, '-hdb', self._hdb]
-
         self._qemu = await asyncio.create_subprocess_exec(
-            'qemu-system-x86_64', *args,
+            'qemu-system-x86_64', '-serial', 'stdio', '-hda', self._hda, '-hdb', self._hdb,
             stdout=asyncio.subprocess.PIPE, stdin=asyncio.subprocess.PIPE)
 
         await self.readuntil(b'login: ')
-        print('got login screen')
-
-        await self._login()
-        print('logged in')
-
-    async def _login(self):
         self.write(b'root\r')
-        #await asyncio.sleep(0.3)
+
         await self.readuntil(b'Password: ')
         self.write(b'root\r')
+
         await self.wait_for_prompt()
+        print('logged in')
 
 
 class ShellError(Exception):
