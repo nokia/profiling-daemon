@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(CXXOPTS_BUILD_TESTS OFF)
-set(CXXOPTS_BUILD_EXAMPLES OFF)
-add_subdirectory(3rd-party/cxxopts)
-
 option(BUILD_TEST "build the unit tests" OFF)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")
@@ -12,7 +8,7 @@ set(CMAKE_CXX_STANDARD 14)
 find_package(Threads REQUIRED)
 
 add_executable(poor-perf src/main.cpp)
-target_link_libraries(poor-perf cxxopts::cxxopts boost_program_options boost_system boost_filesystem Threads::Threads)
+target_link_libraries(poor-perf boost_program_options boost_system boost_filesystem Threads::Threads)
 
 if(BUILD_TEST)
     add_subdirectory(3rd-party/Catch2)

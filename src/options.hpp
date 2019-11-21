@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <boost/program_options.hpp>
-#include <cxxopts.hpp>
 
 namespace poor_perf
 {
