@@ -113,14 +113,18 @@ auto wait_for_trigger(watchdog& wdg)
     return trigger;
 }
 
-void watchdog_mode(const options_t& options)
+void watchdog_mode(const boost::program_options::variables_map& options)
 {
+    const auto output = options["output"].as<std::string>();
+    const auto duration = options["duration"].as<std::size_t>();
+    const auto cpu = options["cpu"].as<std::size_t>();
+
     running_processes_snapshot proc;
-    watchdog wdg{options.cpu};
+    watchdog wdg{cpu};
 
     {
-        output_stream f{options.output};
-        f.message("watchdog mode started on cpu ", options.cpu);
+        output_stream f{output};
+        f.message("watchdog mode started on cpu ", cpu);
     }
 
     // childs inherit sched so set it after watchdog is started
@@ -134,18 +138,18 @@ void watchdog_mode(const options_t& options)
         {
             // I want to make sure that after profiling is done, the
             // file is flushed and closed
-            output_stream f{options.output};
+            output_stream f{output};
             f.message("woke up by ", t);
-            profile_for(f, options.cpu, proc, std::chrono::seconds{options.duration});
+            profile_for(f, cpu, proc, std::chrono::seconds{duration});
         }
     }
 }
 
-void oneshot_mode(const options_t& options)
+void oneshot_mode(const boost::program_options::variables_map& options)
 {
-    const auto output = options.output;
-    const auto duration = options.duration;
-    const auto cpu = options.cpu;
+    const auto output = options["output"].as<std::string>();
+    const auto duration = options["duration"].as<std::size_t>();
+    const auto cpu = options["cpu"].as<std::size_t>();
 
     set_this_thread_into_realtime();
     running_processes_snapshot proc;
@@ -165,9 +169,14 @@ int main(int argc, char **argv)
     ::signal(SIGINT, poor_perf::signal_handler);
     ::signal(SIGTERM, poor_perf::signal_handler);
 
-    if (options.mode == poor_perf::mode_t::watchdog)
+    switch (options["mode"].as<poor_perf::mode_t>())
+    {
+    case poor_perf::mode_t::watchdog:
         poor_perf::watchdog_mode(options);
-    else if (options.mode == poor_perf::mode_t::oneshot)
+        break;
+    case poor_perf::mode_t::oneshot:
         poor_perf::oneshot_mode(options);
+        break;
+    }
 }
 

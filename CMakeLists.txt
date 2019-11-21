@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
-option(CXXOPTS_BUILD_TESTS "" OFF)
-option(CXXOPTS_BUILD_EXAMPLES "" OFF)
+set(CXXOPTS_BUILD_TESTS OFF)
+set(CXXOPTS_BUILD_EXAMPLES OFF)
 add_subdirectory(3rd-party/cxxopts)
 
 option(BUILD_TEST "build the unit tests" OFF)
