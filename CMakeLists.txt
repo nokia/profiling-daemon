@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 14)
 find_package(Threads REQUIRED)
 
 add_executable(poor-perf src/main.cpp)
-target_link_libraries(poor-perf cxxopts::cxxopts boost_system boost_filesystem Threads::Threads)
+target_link_libraries(poor-perf cxxopts::cxxopts boost_program_options boost_system boost_filesystem Threads::Threads)
 
 if(BUILD_TEST)
     add_subdirectory(3rd-party/Catch2)
