@@ -56,7 +56,7 @@ In kernel, the filename will usualy have a `<kernelmain>` or the module like `[i
 It is a python script that can be used to postprocess the output.
 
 ```
-podusows@podusows-ThinkPad-T480:~/Development/poor-perf$ cmake --build build && sudo ./build/poor-perf --mode oneshot --output - | ./report.py top
+$ cmake --build build && sudo ./build/poor-perf --mode oneshot --output - | ./report.py top
 [100%] Built target poor-perf
 read 167161 kernel symbols
 took map snapshot of 293 running processes
