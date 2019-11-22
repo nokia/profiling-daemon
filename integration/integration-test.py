@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+
+# Copyright 2019 Nokia
+#
+# Licensed under the BSD 3 Clause license
+# SPDX-License-Identifier: BSD-3-Clause
+
 import asyncio
 import os
 import time
