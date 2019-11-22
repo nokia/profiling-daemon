@@ -1,4 +1,4 @@
-`poor-perf` is a mix of linux `perf` and a watchdog. It comes with two modes: _watchdog_ and _oneshot_.
+`profd` is a mix of linux `perf` tool and a watchdog which can be used to profile the system on extraoridinary high loads or almost total CPU starvation. Watchdog part fires up the `watchdog` thread (`SCHED_OTHER`) which tries to switch global `bool` variable. Main thread (`SCHED_FIFO`) checks that variable periodicaly and if it remains unchanged, profiler is started for a few seconds.
 
 
 # Common options
@@ -9,19 +9,12 @@
 
 `--duration` - specify in seconds for how long system should be profiled
 
-`--output` - filename to store the report; you can use `-` if you it to be printed on _stdout_.
+`--output` - filename to store the report; use `-` if you want it to be printed on standard output.
 
 
-# _watchdog_ mode
+# _watchdog_ vs _oneshot_
 
-In this mode, an additional thread is started with `SCHED_OTHER` scheduler class and its one and only function is to switch global atomic flag to `true`, sleep for 1 second and then start over again. The main thread (which runs on `SCHED_FIFO`) monitors that flag and runs profiling for a brief moment when the flag is not switched in time because of some sort of cpu core starvation. After profiling is done, the `watchdog` keeps running so multiple sessions can appear in the output.
-
-This mode was the key reason why we did implement this tool.
-
-
-# _oneshot_ mode
-
-This executes one profiling session immidiately.
+_watchdog_ is a default, but `profd` can be also started with _oneshot_ mode. It fires the profiler immidiately and exits when it is done.
 
 
 # Output format
