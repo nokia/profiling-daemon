@@ -73,3 +73,8 @@ took map snapshot of 293 running processes
 39 chrome <kernelmain> 0xffffffff982f1ef0 native_queued_spin_lock_slowpath
 38 chrome <kernelmain> 0xffffffff9822f680 sync_regs
 ```
+
+
+## License
+
+This project is licensed under the BSD-3-Clause license - see the [LICENSE](https://github.com/nokia/profiling-daemon/blob/master/LICENSE).
